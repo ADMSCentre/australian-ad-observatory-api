@@ -10,6 +10,7 @@ info:
     email: d.k.tran@uq.edu.au
   license:
     name: MIT
+    url: https://opensource.org/license/mit
   version: 1.0.0
 externalDocs:
   description: Find out more about the Australian Ad Observatory
@@ -141,7 +142,7 @@ paths:
                   comment:
                     type: string
   /users:
-    post:
+    get:
       summary: Returns a list of users from the S3 bucket
       description: Returns a list of users stored in the S3 bucket.
       
@@ -321,7 +322,7 @@ paths:
       security:
       - bearerAuth: []
   /list-observers:
-    post:
+    get:
       summary: List all observers.
       description: Retrieve a list of all observers from the S3 bucket.
       
@@ -433,7 +434,7 @@ paths:
       security:
       - bearerAuth: []
   /list-ads:
-    post:
+    get:
       summary: Retrieve the ads stream index.
       description: Retrieve the ads stream index from the S3 bucket, or recompute it if
         it is older than 24 hours.
