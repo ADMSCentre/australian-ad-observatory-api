@@ -357,15 +357,12 @@ paths:
       
       tags:
       - observers
-      requestBody:
+      parameters:
+      - in: query
+        name: observer_id
         required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                observer_id:
-                  type: string
+        schema:
+          type: string
       responses:
         200:
           description: A successful response
@@ -393,15 +390,12 @@ paths:
       
       tags:
       - ads
-      requestBody:
+      parameters:
+      - in: query
+        name: path
         required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                path:
-                  type: string
+        schema:
+          type: string
       responses:
         200:
           description: A successful response
@@ -429,8 +423,10 @@ paths:
                 properties:
                   success:
                     type: boolean
+                    example: false
                   comment:
                     type: string
+                    example: PATH_NOT_PROVIDED
       security:
       - bearerAuth: []
   /list-ads:
