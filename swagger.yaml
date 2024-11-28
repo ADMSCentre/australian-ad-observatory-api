@@ -171,7 +171,7 @@ paths:
       security:
       - bearerAuth: []
   /users/edit:
-    post:
+    patch:
       summary: Edit a user in the S3 bucket
       description: Edit a user's information stored in the S3 bucket.
       
