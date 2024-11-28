@@ -493,3 +493,10 @@ paths:
                     type: boolean
                   comment:
                     type: string
+  /hello:
+    get:
+      responses:
+        200:
+          description: OK
+        400:
+          description: Bad Request
