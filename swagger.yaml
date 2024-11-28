@@ -26,8 +26,8 @@ components:
 paths:
   /auth/login:
     post:
-      summary: Log the user in and return a session token.
-      description: Log the user in and create a session token for the user, which can be
+      summary: Log the user in and return a JSON web token.
+      description: Log the user in and create a JSON web token for the user, which can be
         used to authenticate the user in future requests.
       
       tags:
@@ -68,8 +68,8 @@ paths:
                     type: string
   /auth/verify:
     post:
-      summary: Verify the session token.
-      description: Return whether the session token is valid.
+      summary: Verify the JSON web token.
+      description: Return whether the JSON web token is valid.
       
       tags:
       - auth
@@ -106,7 +106,7 @@ paths:
   /auth/logout:
     post:
       summary: Log the user out.
-      description: Log the user out and disable the session token to prevent further authentication
+      description: Log the user out and disable the JSON web token to prevent further authentication
         using the same token.
       
       tags:
