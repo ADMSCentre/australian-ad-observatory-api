@@ -1,0 +1,498 @@
+openapi: 3.0.3
+info:
+  title: Australian Ad Observatory API
+  description: 'This is the API for the Australian Ad Observatory.
+
+
+    I will try to come up with a better description later.'
+  termsOfService: http://swagger.io/terms/
+  contact:
+    email: d.k.tran@uq.edu.au
+  license:
+    name: MIT
+  version: 1.0.0
+externalDocs:
+  description: Find out more about the Australian Ad Observatory
+  url: https://www.admscentre.org.au/adobservatory/
+servers:
+- url: https://f06kj1k332.execute-api.ap-southeast-2.amazonaws.com/dev/
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+paths:
+  /auth/login:
+    post:
+      summary: Log the user in and return a session token.
+      description: Log the user in and create a session token for the user, which can be
+        used to authenticate the user in future requests.
+      
+      tags:
+      - auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+      responses:
+        200:
+          description: A successful login
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  token:
+                    type: string
+        400:
+          description: A failed login
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  comment:
+                    type: string
+  /auth/verify:
+    post:
+      summary: Verify the session token.
+      description: Return whether the session token is valid.
+      
+      tags:
+      - auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+      responses:
+        200:
+          description: A successful verification
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        400:
+          description: A failed verification
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  comment:
+                    type: string
+  /auth/logout:
+    post:
+      summary: Log the user out.
+      description: Log the user out and disable the session token to prevent further authentication
+        using the same token.
+      
+      tags:
+      - auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+      responses:
+        200:
+          description: A successful logout
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        400:
+          description: A failed logout
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  comment:
+                    type: string
+  /users:
+    post:
+      summary: Returns a list of users from the S3 bucket
+      description: Returns a list of users stored in the S3 bucket.
+      
+      tags:
+      - users
+      responses:
+        200:
+          description: A successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        400:
+          description: A failed response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  comment:
+                    type: string
+      security:
+      - bearerAuth: []
+  /users/edit:
+    post:
+      summary: Edit a user in the S3 bucket
+      description: Edit a user's information stored in the S3 bucket.
+      
+      tags:
+      - users
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                enabled:
+                  type: boolean
+                password:
+                  type: string
+                full_name:
+                  type: string
+                role:
+                  type: string
+      responses:
+        200:
+          description: A successful edit
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  comment:
+                    type: string
+        400:
+          description: A failed edit
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  comment:
+                    type: string
+      security:
+      - bearerAuth: []
+  /ads/attributes:
+    post:
+      summary: Retrieve ad attributes from the S3 bucket.
+      description: Retrieve custom attributes for the specified ads from the S3 bucket.
+      
+      tags:
+      - ads
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ads:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      ad_id:
+                        type: string
+                      observer:
+                        type: string
+                      timestamp:
+                        type: integer
+      responses:
+        200:
+          description: A successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        400:
+          description: A failed response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  comment:
+                    type: string
+      security:
+      - bearerAuth: []
+  /ads/attributes/add:
+    post:
+      summary: Add or update ad attributes in the S3 bucket.
+      description: Add or update custom attributes for the specified ad in the S3 bucket.
+      
+      tags:
+      - ads
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ad:
+                  type: object
+                  properties:
+                    ad_id:
+                      type: string
+                    observer:
+                      type: string
+                    timestamp:
+                      type: integer
+                attribute:
+                  type: object
+                  properties:
+                    key:
+                      type: string
+                    value:
+                      type: string
+      responses:
+        200:
+          description: A successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  comment:
+                    type: string
+        400:
+          description: A failed response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  comment:
+                    type: string
+      security:
+      - bearerAuth: []
+  /list-observers:
+    post:
+      summary: List all observers.
+      description: Retrieve a list of all observers from the S3 bucket.
+      
+      tags:
+      - observers
+      responses:
+        200:
+          description: A successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+        400:
+          description: A failed response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  comment:
+                    type: string
+      security:
+      - bearerAuth: []
+  /get-access-cache:
+    post:
+      summary: Retrieve the access cache for an observer.
+      description: Retrieve the quick access cache for the specified observer.
+      
+      tags:
+      - observers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                observer_id:
+                  type: string
+      responses:
+        200:
+          description: A successful response
+          content:
+            application/json:
+              schema:
+                type: object
+        400:
+          description: A failed response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  comment:
+                    type: string
+      security:
+      - bearerAuth: []
+  /get-frames-presigned:
+    post:
+      summary: Get the presigned URLs for the frames of an ad.
+      description: Retrieve presigned URLs for the frames of the specified ad.
+      
+      tags:
+      - ads
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                path:
+                  type: string
+      responses:
+        200:
+          description: A successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  frame_paths:
+                    type: array
+                    items:
+                      type: string
+                  presigned_urls:
+                    type: array
+                    items:
+                      type: string
+        400:
+          description: A failed response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  comment:
+                    type: string
+      security:
+      - bearerAuth: []
+  /list-ads:
+    post:
+      summary: Retrieve the ads stream index.
+      description: Retrieve the ads stream index from the S3 bucket, or recompute it if
+        it is older than 24 hours.
+      
+      tags:
+      - ads
+      responses:
+        200:
+          description: A successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  presigned_url:
+                    type: string
+        500:
+          description: A failed response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  comment:
+                    type: string
+                  error:
+                    type: string
+      security:
+      - bearerAuth: []
+  /reflect:
+    post:
+      summary: Reflect the event back to the client.
+      description: Return the event object as the response.
+      
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        200:
+          description: A successful reflection
+          content:
+            application/json:
+              schema:
+                type: object
+        400:
+          description: A failed reflection
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  comment:
+                    type: string
