@@ -64,6 +64,7 @@ paths:
                 properties:
                   success:
                     type: boolean
+                    example: false
                   comment:
                     type: string
   /auth/verify:
@@ -101,8 +102,10 @@ paths:
                 properties:
                   success:
                     type: boolean
+                    example: false
                   comment:
                     type: string
+                    example: VERIFY_FAILED
   /auth/logout:
     post:
       summary: Log the user out.
@@ -139,12 +142,14 @@ paths:
                 properties:
                   success:
                     type: boolean
+                    example: false
                   comment:
                     type: string
+                    example: LOGOUT_FAILED
   /users:
     get:
-      summary: Returns a list of users from the S3 bucket
-      description: Returns a list of users stored in the S3 bucket.
+      summary: Returns a list of users from the database
+      description: Returns a list of users stored in the database.
       
       tags:
       - users
@@ -166,15 +171,24 @@ paths:
                 properties:
                   success:
                     type: boolean
+                    example: false
                   comment:
                     type: string
       security:
       - bearerAuth: []
-  /users/edit:
+  /users/{username}:
     patch:
-      summary: Edit a user in the S3 bucket
-      description: Edit a user's information stored in the S3 bucket.
+      summary: Edit a user's information
+      description: Edit a user's information. All fields are optional, and only the fields
+        provided will be updated.
       
+      parameters:
+      - in: path
+        name: username
+        required: true
+        schema:
+          type: string
+        description: The username of the user to edit
       tags:
       - users
       requestBody:
@@ -184,8 +198,6 @@ paths:
             schema:
               type: object
               properties:
-                username:
-                  type: string
                 enabled:
                   type: boolean
                 password:
@@ -215,46 +227,12 @@ paths:
                 properties:
                   success:
                     type: boolean
+                    example: false
                   comment:
                     type: string
-      security:
-      - bearerAuth: []
-  /ads/attributes:
-    post:
-      summary: Retrieve ad attributes from the S3 bucket.
-      description: Retrieve custom attributes for the specified ads from the S3 bucket.
-      
-      tags:
-      - ads
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                ads:
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      ad_id:
-                        type: string
-                      observer:
-                        type: string
-                      timestamp:
-                        type: integer
-      responses:
-        200:
-          description: A successful response
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  type: object
-        400:
-          description: A failed response
+                    example: User not found
+        403:
+          description: Unauthorized edit
           content:
             application/json:
               schema:
@@ -262,81 +240,32 @@ paths:
                 properties:
                   success:
                     type: boolean
+                    example: false
                   comment:
                     type: string
+                    example: UNAUTHORIZED
       security:
       - bearerAuth: []
-  /ads/attributes/add:
-    post:
-      summary: Add or update ad attributes in the S3 bucket.
-      description: Add or update custom attributes for the specified ad in the S3 bucket.
-      
-      tags:
-      - ads
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                ad:
-                  type: object
-                  properties:
-                    ad_id:
-                      type: string
-                    observer:
-                      type: string
-                    timestamp:
-                      type: integer
-                attribute:
-                  type: object
-                  properties:
-                    key:
-                      type: string
-                    value:
-                      type: string
-      responses:
-        200:
-          description: A successful response
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  comment:
-                    type: string
-        400:
-          description: A failed response
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  comment:
-                    type: string
-      security:
-      - bearerAuth: []
-  /list-observers:
     get:
-      summary: List all observers.
-      description: Retrieve a list of all observers from the S3 bucket.
+      summary: Get a user from the database
+      description: Get a user's information stored in the database.
       
+      parameters:
+      - in: path
+        name: username
+        required: true
+        schema:
+          type: string
+        description: The username of the user to get
       tags:
-      - observers
+      - users
       responses:
         200:
           description: A successful response
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  type: string
+                type: object
         400:
           description: A failed response
           content:
@@ -346,23 +275,25 @@ paths:
                 properties:
                   success:
                     type: boolean
+                    example: false
                   comment:
                     type: string
+                    example: User not found
       security:
       - bearerAuth: []
-  /get-access-cache:
-    post:
+  /ads/{observer_id}:
+    get:
       summary: Retrieve the access cache for an observer.
       description: Retrieve the quick access cache for the specified observer.
       
-      tags:
-      - observers
       parameters:
-      - in: query
+      - in: path
         name: observer_id
         required: true
         schema:
           type: string
+      tags:
+      - ads
       responses:
         200:
           description: A successful response
@@ -370,6 +301,11 @@ paths:
             application/json:
               schema:
                 type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
         400:
           description: A failed response
           content:
@@ -379,23 +315,48 @@ paths:
                 properties:
                   success:
                     type: boolean
+                    example: false
                   comment:
                     type: string
+                    example: OBSERVER_NOT_PROVIDED_IN_PATH
+        404:
+          description: No cache found for observer
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  comment:
+                    type: string
+                    example: NO_CACHE_FOUND_FOR_OBSERVER
       security:
       - bearerAuth: []
-  /get-frames-presigned:
-    post:
+  /ads/{observer_id}/{timestamp}.{ad_id}/frames:
+    get:
       summary: Get the presigned URLs for the frames of an ad.
       description: Retrieve presigned URLs for the frames of the specified ad.
       
-      tags:
-      - ads
       parameters:
-      - in: query
-        name: path
+      - in: path
+        name: observer_id
         required: true
         schema:
           type: string
+      - in: path
+        name: timestamp
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: ad_id
+        required: true
+        schema:
+          type: string
+      tags:
+      - ads
       responses:
         200:
           description: A successful response
@@ -429,7 +390,7 @@ paths:
                     example: PATH_NOT_PROVIDED
       security:
       - bearerAuth: []
-  /list-ads:
+  /ads:
     get:
       summary: Retrieve the ads stream index.
       description: Retrieve the ads stream index from the S3 bucket, or recompute it if
@@ -458,10 +419,289 @@ paths:
                 properties:
                   success:
                     type: boolean
+                    example: false
                   comment:
                     type: string
+                    example: FAILED_TO_COMPUTE_ADS_STREAM_INDEX
                   error:
                     type: string
+      security:
+      - bearerAuth: []
+  /observers:
+    get:
+      summary: List all observers.
+      description: Retrieve a list of all observers from the S3 bucket.
+      
+      tags:
+      - observers
+      responses:
+        200:
+          description: A successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+        400:
+          description: A failed response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  comment:
+                    type: string
+      security:
+      - bearerAuth: []
+  /ads/{observer_id}/{timestamp}.{ad_id}/attributes:
+    get:
+      summary: Retrieve all attributes for an ad.
+      description: Retrieve all custom attributes for the specified ad.
+      
+      parameters:
+      - in: path
+        name: observer_id
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: timestamp
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: ad_id
+        required: true
+        schema:
+          type: string
+      tags:
+      - ads/attributes
+      responses:
+        200:
+          description: A successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ad_id:
+                    type: string
+                  observer:
+                    type: string
+                  timestamp:
+                    type: integer
+                  attributes:
+                    type: object
+                    additionalProperties:
+                      type: object
+                      properties:
+                        value:
+                          type: string
+                        created_at:
+                          type: integer
+                        created_by:
+                          type: string
+                        modified_at:
+                          type: integer
+                        modified_by:
+                          type: string
+        400:
+          description: A failed response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  comment:
+                    type: string
+                    example: ERROR_RETRIEVING_ATTRIBUTES
+      security:
+      - bearerAuth: []
+    put:
+      summary: Add or update ad attributes in the database.
+      description: Add or update custom attributes for the specified ad in the database.
+      
+      parameters:
+      - in: path
+        name: observer_id
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: timestamp
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: ad_id
+        required: true
+        schema:
+          type: string
+      tags:
+      - ads/attributes
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                attribute:
+                  type: object
+                  properties:
+                    key:
+                      type: string
+                    value:
+                      type: string
+      responses:
+        200:
+          description: A successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  comment:
+                    type: string
+        400:
+          description: A failed response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  comment:
+                    type: string
+                    example: AD_NOT_FOUND
+      security:
+      - bearerAuth: []
+  /ads/{observer_id}/{timestamp}.{ad_id}/attributes/{attribute_key}:
+    get:
+      summary: Retrieve a single attribute for an ad.
+      description: Retrieve a specific custom attribute for the specified ad.
+      
+      parameters:
+      - in: path
+        name: observer_id
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: timestamp
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: ad_id
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: attribute_key
+        required: true
+        schema:
+          type: string
+      tags:
+      - ads/attributes
+      responses:
+        200:
+          description: A successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  key:
+                    type: string
+                  value:
+                    type: string
+                  created_at:
+                    type: integer
+                  created_by:
+                    type: string
+                  modified_at:
+                    type: integer
+                  modified_by:
+                    type: string
+        400:
+          description: A failed response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  comment:
+                    type: string
+                    example: ATTRIBUTE_NOT_FOUND
+      security:
+      - bearerAuth: []
+    delete:
+      summary: Delete ad attributes from the database.
+      description: Delete custom attributes for the specified ad in the database.
+      
+      parameters:
+      - in: path
+        name: observer_id
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: timestamp
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: ad_id
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: attribute_key
+        required: true
+        schema:
+          type: string
+      tags:
+      - ads/attributes
+      responses:
+        200:
+          description: A successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  comment:
+                    type: string
+        400:
+          description: A failed response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  comment:
+                    type: string
+                    example: ERROR_DELETING_ATTRIBUTE
       security:
       - bearerAuth: []
   /reflect:
@@ -495,6 +735,19 @@ paths:
                     type: string
   /hello:
     get:
+      responses:
+        200:
+          description: OK
+        400:
+          description: Bad Request
+  /hello/{user_id}:
+    get:
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
       responses:
         200:
           description: OK
