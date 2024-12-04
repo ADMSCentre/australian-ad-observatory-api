@@ -375,6 +375,35 @@ paths:
                     example: UNAUTHORISED
       security:
       - bearerAuth: []
+  /users/self:
+    get:
+      summary: Get the current user's information
+      description: Get the information of the user making the request.
+      
+      tags:
+      - users
+      responses:
+        200:
+          description: A successful response
+          content:
+            application/json:
+              schema:
+                type: object
+        400:
+          description: A failed response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  comment:
+                    type: string
+                    example: User not found
+      security:
+      - bearerAuth: []
   /ads/{observer_id}:
     get:
       summary: Retrieve the access cache for an observer.
