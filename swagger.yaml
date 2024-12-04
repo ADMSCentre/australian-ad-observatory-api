@@ -176,6 +176,61 @@ paths:
                     type: string
       security:
       - bearerAuth: []
+    post:
+      summary: Create a new user (admin only)
+      description: Create a new user in the database.
+      
+      tags:
+      - users
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                  required: true
+                enabled:
+                  type: boolean
+                  required: true
+                password:
+                  type: string
+                  required: true
+                full_name:
+                  type: string
+                  required: true
+                role:
+                  type: string
+                  required: true
+      responses:
+        201:
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  comment:
+                    type: string
+        400:
+          description: User creation failed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  comment:
+                    type: string
+                    example: User already exists
+      security:
+      - bearerAuth: []
   /users/{username}:
     patch:
       summary: Edit a user's information
