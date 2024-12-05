@@ -397,6 +397,59 @@ paths:
                     example: UNAUTHORISED
       security:
       - bearerAuth: []
+    delete:
+      summary: Delete a user (admin only)
+      description: Delete a user by moving their data to the recycle bin.
+      
+      parameters:
+      - in: path
+        name: username
+        required: true
+        schema:
+          type: string
+        description: The username of the user to delete
+      tags:
+      - users
+      responses:
+        200:
+          description: User deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  comment:
+                    type: string
+        400:
+          description: User deletion failed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  comment:
+                    type: string
+                    example: User not found
+        403:
+          description: Unauthorized access
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  comment:
+                    type: string
+                    example: UNAUTHORISED
+      security:
+      - bearerAuth: []
   /users/self:
     get:
       summary: Get the current user's information
