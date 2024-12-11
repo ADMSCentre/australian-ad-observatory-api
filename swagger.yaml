@@ -543,6 +543,40 @@ paths:
                     example: NO_CACHE_FOUND_FOR_OBSERVER
       security:
       - bearerAuth: []
+  /ads/{observer_id}/{timestamp}.{ad_id}/stiching/frames:
+    get:
+      summary: Get the presigned URLs for the frames of an ad's stitching.
+      description: 'Retrieve presigned URLs for the frames of the specified ad''s stitching,
+        which is the cropped version of the ad that removes the irrelevant parts.
+      
+      
+      
+      
+        security:
+      
+        - bearerAuth: []'
+      
+      parameters:
+      - name: observer_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: timestamp
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: ad_id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        200:
+          description: OK
+        400:
+          description: Bad Request
   /ads/{observer_id}/{timestamp}.{ad_id}/frames:
     get:
       summary: Get the presigned URLs for the frames of an ad.
