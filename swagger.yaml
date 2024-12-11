@@ -546,37 +546,60 @@ paths:
   /ads/{observer_id}/{timestamp}.{ad_id}/stitching/frames:
     get:
       summary: Get the presigned URLs for the frames of an ad's stitching.
-      description: 'Retrieve presigned URLs for the frames of the specified ad''s stitching,
+      description: Retrieve presigned URLs for the frames of the specified ad's stitching,
         which is the cropped version of the ad that removes the irrelevant parts.
       
-      
-      
-      
-        security:
-      
-        - bearerAuth: []'
-      
       parameters:
-      - name: observer_id
-        in: path
+      - in: path
+        name: observer_id
         required: true
         schema:
           type: string
-      - name: timestamp
-        in: path
+      - in: path
+        name: timestamp
         required: true
         schema:
           type: string
-      - name: ad_id
-        in: path
+      - in: path
+        name: ad_id
         required: true
         schema:
           type: string
+      tags:
+      - ads
       responses:
         200:
-          description: OK
+          description: A successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  frame_paths:
+                    type: array
+                    items:
+                      type: string
+                  presigned_urls:
+                    type: array
+                    items:
+                      type: string
         400:
-          description: Bad Request
+          description: A failed response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  comment:
+                    type: string
+                    example: PATH_NOT_PROVIDED
+      security:
+      - bearerAuth: []
   /ads/{observer_id}/{timestamp}.{ad_id}/frames:
     get:
       summary: Get the presigned URLs for the frames of an ad.
