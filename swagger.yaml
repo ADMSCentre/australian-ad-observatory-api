@@ -146,6 +146,47 @@ paths:
                   comment:
                     type: string
                     example: LOGOUT_FAILED
+  /auth/refresh:
+    post:
+      summary: Refresh the JSON web token.
+      description: Refresh the JSON web token to extend the session.
+      
+      tags:
+      - auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+      responses:
+        200:
+          description: A successful refresh
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  token:
+                    type: string
+        400:
+          description: A failed refresh
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  comment:
+                    type: string
+                    example: REFRESH_FAILED
   /users:
     get:
       summary: Returns a list of users from the database (admin only)
