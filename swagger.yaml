@@ -1033,6 +1033,9 @@ paths:
               schema:
                 type: object
                 properties:
+                  success:
+                    type: boolean
+                    example: true
                   path:
                     type: string
                   url:
