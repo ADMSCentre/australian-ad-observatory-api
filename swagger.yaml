@@ -1011,6 +1011,47 @@ paths:
                     example: ERROR_DELETING_ATTRIBUTE
       security:
       - bearerAuth: []
+  /medias:
+    get:
+      summary: Get a media file from S3 from a given path in the query string.
+      description: The path should be a key in the S3 bucket.
+      
+      tags:
+      - media
+      parameters:
+      - in: query
+        name: path
+        required: true
+        schema:
+          type: string
+        description: The path to the media file in the S3 bucket
+      responses:
+        200:
+          description: A successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  path:
+                    type: string
+                  url:
+                    type: string
+        404:
+          description: File not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  comment:
+                    type: string
+                    example: FILE_NOT_FOUND
+      security:
+      - bearerAuth: []
   /reflect:
     post:
       summary: Reflect the event back to the client.
