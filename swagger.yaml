@@ -1094,7 +1094,10 @@ paths:
       - bearerAuth: []
   /guest/sessions:
     post:
-      summary: Create a guest session.
+      summary: Create a guest session. [allows - admin, user]
+      description: 'This endpoint requires the authenticated user to have one of the following
+        roles: **admin, user**.'
+      
       requestBody:
         required: true
         content:
@@ -1140,8 +1143,13 @@ paths:
                 example:
                   success: false
                   comment: Error message
+      security:
+      - bearerAuth: []
     get:
-      summary: List all guest sessions.
+      summary: List all guest sessions. [allows - admin, user]
+      description: 'This endpoint requires the authenticated user to have one of the following
+        roles: **admin, user**.'
+      
       responses:
         200:
           description: A JSON array containing session data
@@ -1165,9 +1173,14 @@ paths:
                     enabled: true
                     full_name: Guest
                     description: Session description
+      security:
+      - bearerAuth: []
   /guest/sessions/{key}:
     get:
-      summary: Retrieve a guest session.
+      summary: Retrieve a guest session. [allows - admin, user]
+      description: 'This endpoint requires the authenticated user to have one of the following
+        roles: **admin, user**.'
+      
       parameters:
       - name: key
         in: path
@@ -1204,8 +1217,13 @@ paths:
                 example:
                   success: false
                   comment: Session not found
+      security:
+      - bearerAuth: []
     delete:
-      summary: Delete a guest session.
+      summary: Delete a guest session. [allows - admin, user]
+      description: 'This endpoint requires the authenticated user to have one of the following
+        roles: **admin, user**.'
+      
       parameters:
       - name: key
         in: path
@@ -1242,8 +1260,13 @@ paths:
                 example:
                   success: false
                   comment: Session not found
+      security:
+      - bearerAuth: []
     patch:
-      summary: Update a guest session.
+      summary: Update a guest session. [allows - admin, user]
+      description: 'This endpoint requires the authenticated user to have one of the following
+        roles: **admin, user**.'
+      
       parameters:
       - name: key
         in: path
@@ -1293,6 +1316,8 @@ paths:
                 example:
                   success: false
                   comment: Session not found
+      security:
+      - bearerAuth: []
   /reflect:
     post:
       summary: Reflect the event back to the client.
