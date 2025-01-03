@@ -1092,6 +1092,207 @@ paths:
                     example: FILE_NOT_FOUND
       security:
       - bearerAuth: []
+  /guest/sessions:
+    post:
+      summary: Create a guest session.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                key:
+                  type: string
+                  description: A unique identifier for the session.
+                expiration_time:
+                  type: integer
+                  description: The time in seconds until the session expires.
+                description:
+                  type: string
+                  description: A description of the session.
+      responses:
+        200:
+          description: A JSON object containing the session token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  token:
+                    type: string
+                example:
+                  success: true
+                  token: jwt_token
+        400:
+          description: A JSON object containing an error message
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  comment:
+                    type: string
+                example:
+                  success: false
+                  comment: Error message
+    get:
+      summary: List all guest sessions.
+      responses:
+        200:
+          description: A JSON array containing session data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    key:
+                      type: string
+                    data:
+                      type: object
+                example:
+                - key: session_key
+                  data:
+                    exp: 1234567890
+                    username: session_key
+                    role: guest
+                    enabled: true
+                    full_name: Guest
+                    description: Session description
+  /guest/sessions/{key}:
+    get:
+      summary: Retrieve a guest session.
+      parameters:
+      - name: key
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The key of the session.
+      responses:
+        200:
+          description: A JSON object containing the session token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  token:
+                    type: string
+                example:
+                  success: true
+                  token: jwt_token
+        404:
+          description: A JSON object containing an error message
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  comment:
+                    type: string
+                example:
+                  success: false
+                  comment: Session not found
+    delete:
+      summary: Delete a guest session.
+      parameters:
+      - name: key
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The key of the session.
+      responses:
+        200:
+          description: A JSON object indicating success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  comment:
+                    type: string
+                example:
+                  success: true
+                  comment: Session deleted
+        404:
+          description: A JSON object containing an error message
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  comment:
+                    type: string
+                example:
+                  success: false
+                  comment: Session not found
+    patch:
+      summary: Update a guest session.
+      parameters:
+      - name: key
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The key of the session.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                description:
+                  type: string
+                  description: A new description for the session.
+                expiration_time:
+                  type: integer
+                  description: A new expiration time for the session in seconds.
+      responses:
+        200:
+          description: A JSON object indicating success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  comment:
+                    type: string
+                example:
+                  success: true
+                  comment: Session updated
+        404:
+          description: A JSON object containing an error message
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  comment:
+                    type: string
+                example:
+                  success: false
+                  comment: Session not found
   /reflect:
     post:
       summary: Reflect the event back to the client.
