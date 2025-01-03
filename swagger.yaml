@@ -189,8 +189,12 @@ paths:
                     example: REFRESH_FAILED
   /users:
     get:
-      summary: Returns a list of users from the database (admin only)
-      description: Returns a list of users stored in the database.
+      summary: Returns a list of users from the database (admin only) [allows - admin]
+      description: 'Returns a list of users stored in the database.
+      
+      
+        This endpoint requires the authenticated user to have one of the following roles:
+        **admin**.'
       
       tags:
       - users
@@ -242,8 +246,12 @@ paths:
       security:
       - bearerAuth: []
     post:
-      summary: Create a new user (admin only)
-      description: Create a new user in the database.
+      summary: Create a new user (admin only) [allows - admin]
+      description: 'Create a new user in the database.
+      
+      
+        This endpoint requires the authenticated user to have one of the following roles:
+        **admin**.'
       
       tags:
       - users
@@ -252,23 +260,24 @@ paths:
         content:
           application/json:
             schema:
+              required:
+              - username
+              - enabled
+              - password
+              - full_name
+              - role
               type: object
               properties:
                 username:
                   type: string
-                  required: true
                 enabled:
                   type: boolean
-                  required: true
                 password:
                   type: string
-                  required: true
                 full_name:
                   type: string
-                  required: true
                 role:
                   type: string
-                  required: true
       responses:
         201:
           description: User created successfully
@@ -311,9 +320,13 @@ paths:
       - bearerAuth: []
   /users/{username}:
     patch:
-      summary: Edit a user's information (self or admin only)
-      description: Edit a user's information. All fields are optional, and only the fields
+      summary: Edit a user's information (self or admin only) [allows - user, admin]
+      description: 'Edit a user''s information. All fields are optional, and only the fields
         provided will be updated.
+      
+      
+        This endpoint requires the authenticated user to have one of the following roles:
+        **user, admin**.'
       
       parameters:
       - in: path
@@ -380,8 +393,12 @@ paths:
       security:
       - bearerAuth: []
     get:
-      summary: Get a user from the database (self or admin only)
-      description: Get a user's information stored in the database.
+      summary: Get a user from the database (self or admin only) [allows - user, admin]
+      description: 'Get a user''s information stored in the database.
+      
+      
+        This endpoint requires the authenticated user to have one of the following roles:
+        **user, admin**.'
       
       parameters:
       - in: path
@@ -439,8 +456,12 @@ paths:
       security:
       - bearerAuth: []
     delete:
-      summary: Delete a user (admin only)
-      description: Delete a user by moving their data to the recycle bin.
+      summary: Delete a user (admin only) [allows - admin]
+      description: 'Delete a user by moving their data to the recycle bin.
+      
+      
+        This endpoint requires the authenticated user to have one of the following roles:
+        **admin**.'
       
       parameters:
       - in: path
@@ -493,8 +514,12 @@ paths:
       - bearerAuth: []
   /users/self:
     get:
-      summary: Get the current user's information
-      description: Get the information of the user making the request.
+      summary: Get the current user's information [allows - user, admin]
+      description: 'Get the information of the user making the request.
+      
+      
+        This endpoint requires the authenticated user to have one of the following roles:
+        **user, admin**.'
       
       tags:
       - users
@@ -736,8 +761,12 @@ paths:
       - bearerAuth: []
   /observers:
     get:
-      summary: List all observers.
-      description: Retrieve a list of all observers from the S3 bucket.
+      summary: List all observers. [allows - user, admin]
+      description: 'Retrieve a list of all observers from the S3 bucket.
+      
+      
+        This endpoint requires the authenticated user to have one of the following roles:
+        **user, admin**.'
       
       tags:
       - observers
@@ -832,8 +861,12 @@ paths:
       security:
       - bearerAuth: []
     put:
-      summary: Add or update ad attributes in the database.
-      description: Add or update custom attributes for the specified ad in the database.
+      summary: Add or update ad attributes in the database. [allows - user, admin]
+      description: 'Add or update custom attributes for the specified ad in the database.
+      
+      
+        This endpoint requires the authenticated user to have one of the following roles:
+        **user, admin**.'
       
       parameters:
       - in: path
@@ -958,8 +991,12 @@ paths:
       security:
       - bearerAuth: []
     delete:
-      summary: Delete ad attributes from the database.
-      description: Delete custom attributes for the specified ad in the database.
+      summary: Delete ad attributes from the database. [allows - user, admin]
+      description: 'Delete custom attributes for the specified ad in the database.
+      
+      
+        This endpoint requires the authenticated user to have one of the following roles:
+        **user, admin**.'
       
       parameters:
       - in: path
