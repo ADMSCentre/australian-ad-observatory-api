@@ -1092,12 +1092,14 @@ paths:
                     example: FILE_NOT_FOUND
       security:
       - bearerAuth: []
-  /guest/sessions:
+  /guests:
     post:
       summary: Create a guest session. [allows - admin, user]
       description: 'This endpoint requires the authenticated user to have one of the following
         roles: **admin, user**.'
       
+      tags:
+      - guests
       requestBody:
         required: true
         content:
@@ -1150,6 +1152,8 @@ paths:
       description: 'This endpoint requires the authenticated user to have one of the following
         roles: **admin, user**.'
       
+      tags:
+      - guests
       responses:
         200:
           description: A JSON array containing session data
@@ -1175,12 +1179,9 @@ paths:
                     description: Session description
       security:
       - bearerAuth: []
-  /guest/sessions/{key}:
+  /guests/{key}:
     get:
-      summary: Retrieve a guest session. [allows - admin, user]
-      description: 'This endpoint requires the authenticated user to have one of the following
-        roles: **admin, user**.'
-      
+      summary: Retrieve a guest session.
       parameters:
       - name: key
         in: path
@@ -1188,6 +1189,8 @@ paths:
         schema:
           type: string
         description: The key of the session.
+      tags:
+      - guests
       responses:
         200:
           description: A JSON object containing the session token
@@ -1217,8 +1220,6 @@ paths:
                 example:
                   success: false
                   comment: Session not found
-      security:
-      - bearerAuth: []
     delete:
       summary: Delete a guest session. [allows - admin, user]
       description: 'This endpoint requires the authenticated user to have one of the following
@@ -1231,6 +1232,8 @@ paths:
         schema:
           type: string
         description: The key of the session.
+      tags:
+      - guests
       responses:
         200:
           description: A JSON object indicating success
@@ -1274,6 +1277,8 @@ paths:
         schema:
           type: string
         description: The key of the session.
+      tags:
+      - guests
       requestBody:
         required: true
         content:
