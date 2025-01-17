@@ -837,6 +837,62 @@ paths:
                     example: 'MISSING_PARAMETERS: observer_id, timestamp, ad_id'
       security:
       - bearerAuth: []
+  /ads/{observer_id}/{timestamp}.{ad_id}/rdo/dimensions:
+    get:
+      summary: Retrieve dimensions for an ad.
+      description: Retrieve the width and height of the specified ad.
+      
+      parameters:
+      - in: path
+        name: observer_id
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: timestamp
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: ad_id
+        required: true
+        schema:
+          type: string
+      tags:
+      - ads
+      - rdo
+      responses:
+        200:
+          description: A successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  dimensions:
+                    type: object
+                    properties:
+                      w:
+                        type: integer
+                      h:
+                        type: integer
+        400:
+          description: A failed response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  comment:
+                    type: string
+                    example: 'MISSING_PARAMETERS: observer_id, timestamp, ad_id'
+      security:
+      - bearerAuth: []
   /observers:
     get:
       summary: List all observers. [allows - user, admin]
