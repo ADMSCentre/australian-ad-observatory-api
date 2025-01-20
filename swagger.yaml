@@ -953,6 +953,57 @@ paths:
                     example: 'MISSING_PARAMETERS: observer_id, timestamp, ad_id'
       security:
       - bearerAuth: []
+  /ads/query:
+    post:
+      summary: Query ads based on specified criteria.
+      description: Perform a query on ads using the specified criteria and return the matching
+        ad paths.
+      
+      tags:
+      - ads
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                method:
+                  type: string
+                  example: OR
+                args:
+                  type: array
+                  items:
+                    type: object
+      responses:
+        200:
+          description: A successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  result:
+                    type: array
+                    items:
+                      type: string
+        400:
+          description: A failed response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  comment:
+                    type: string
+                    example: INVALID_QUERY
+      security:
+      - bearerAuth: []
   /observers:
     get:
       summary: List all observers. [allows - user, admin]
