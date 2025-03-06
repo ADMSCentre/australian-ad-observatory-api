@@ -1,10 +1,15 @@
 openapi: 3.0.3
 info:
   title: Australian Ad Observatory API
-  description: 'This is the API for the Australian Ad Observatory.
+  description: 'This is the documentation for the API used in the Australian Ad Observatory
+    (AAO) project.
 
 
-    I will try to come up with a better description later.'
+    The API is used to access the data collected by the AAO, with a focus on the data
+    collected from the Australian Mobile Ad Toolkit on Android devices. The toolkit
+    collects data on the ads displayed on the device, including the ad content, the
+    app displaying the ad and more. To use this API, you will need to authenticate
+    using a JWT token through an account granted by the AAO team.'
   termsOfService: http://swagger.io/terms/
   contact:
     email: d.k.tran@uq.edu.au
@@ -17,12 +22,6 @@ externalDocs:
   url: https://www.admscentre.org.au/adobservatory/
 servers:
 - url: https://f06kj1k332.execute-api.ap-southeast-2.amazonaws.com/dev/
-components:
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
 paths:
   /auth/login:
     post:
@@ -1703,6 +1702,8 @@ paths:
   /projects:
     post:
       summary: Create a new project.
+      tags:
+      - projects
       requestBody:
         required: true
         content:
@@ -1725,6 +1726,8 @@ paths:
       - bearerAuth: []
     get:
       summary: List all projects where the user is a part of (either owner, or if the user is an admin, all projects).
+      tags:
+      - projects
       responses:
         200:
           description: List of projects
@@ -1745,6 +1748,8 @@ paths:
         required: true
         schema:
           type: string
+      tags:
+      - projects
       responses:
         200:
           description: Project retrieved successfully
@@ -1764,6 +1769,8 @@ paths:
         required: true
         schema:
           type: string
+      tags:
+      - projects
       requestBody:
         required: true
         content:
@@ -1789,6 +1796,8 @@ paths:
         required: true
         schema:
           type: string
+      tags:
+      - projects
       responses:
         204:
           description: Project deleted successfully
@@ -1845,3 +1854,155 @@ paths:
           description: OK
         400:
           description: Bad Request
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Project:
+      properties:
+        id:
+          title: Id
+          type: string
+        name:
+          title: Name
+          type: string
+        description:
+          title: Description
+          type: string
+        ownerId:
+          title: Ownerid
+          type: string
+        team:
+          items:
+            $ref: '#/components/schemas/TeamMember'
+          title: Team
+          type: array
+        cells:
+          items:
+            anyOf:
+            - $ref: '#/components/schemas/TextCell'
+            - $ref: '#/components/schemas/QueryCell'
+          title: Cells
+          type: array
+      required:
+      - id
+      - name
+      - description
+      - ownerId
+      - team
+      - cells
+      title: Project
+      type: object
+    Query:
+      properties:
+        method:
+          title: Method
+          type: string
+        args:
+          items:
+            anyOf:
+            - $ref: '#/components/schemas/Query'
+            - type: string
+          title: Args
+          type: array
+      required:
+      - method
+      - args
+      title: Query
+      type: object
+    QueryCell:
+      properties:
+        id:
+          title: Id
+          type: string
+        type:
+          title: Type
+          type: string
+        content:
+          $ref: '#/components/schemas/QueryCellContent'
+      required:
+      - id
+      - type
+      - content
+      title: QueryCell
+      type: object
+    QueryCellContent:
+      properties:
+        query:
+          $ref: '#/components/schemas/Query'
+        results:
+          items:
+            $ref: '#/components/schemas/QueryResult'
+          title: Results
+          type: array
+      required:
+      - query
+      - results
+      title: QueryCellContent
+      type: object
+    QueryResult:
+      properties:
+        id:
+          title: Id
+          type: string
+        type:
+          title: Type
+          type: string
+        config:
+          anyOf:
+          - $ref: '#/components/schemas/QueryResultConfig'
+          - type: 'null'
+          default: null
+      required:
+      - id
+      - type
+      title: QueryResult
+      type: object
+    QueryResultConfig:
+      properties:
+        sort:
+          title: Sort
+          type: string
+        groupBy:
+          title: Groupby
+          type: string
+      required:
+      - sort
+      - groupBy
+      title: QueryResultConfig
+      type: object
+    TeamMember:
+      properties:
+        username:
+          title: Username
+          type: string
+        role:
+          title: Role
+          type: string
+      required:
+      - username
+      - role
+      title: TeamMember
+      type: object
+    TextCell:
+      properties:
+        id:
+          title: Id
+          type: string
+        type:
+          title: Type
+          type: string
+        content:
+          title: Content
+          type: string
+      required:
+      - id
+      - type
+      - content
+      title: TextCell
+      type: object
+  
