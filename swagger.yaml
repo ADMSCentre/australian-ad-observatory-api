@@ -835,10 +835,10 @@ paths:
                     type: boolean
                   data:
                     type: object
-                  expanded:
+                  ads:
                     type: array
                     items:
-                      $ref: '#/components/schemas/Ad'
+                      type: string
         400:
           description: A failed response
           content:
@@ -1000,10 +1000,10 @@ paths:
                     type: boolean
                   presigned_url:
                     type: string
-                  expanded:
+                  ads:
                     type: array
                     items:
-                      $ref: '#/components/schemas/Ad'
+                      type: string
         500:
           description: A failed response
           content:
@@ -1443,10 +1443,6 @@ paths:
                     type: array
                     items:
                       type: string
-                  expanded:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Ad'
         400:
           description: A failed response
           content:
