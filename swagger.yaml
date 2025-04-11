@@ -188,12 +188,12 @@ paths:
                     example: REFRESH_FAILED
   /users:
     get:
-      summary: Returns a list of users from the database (admin only) [allows - admin]
+      summary: Returns a list of users from the database (admin only) [allows - user, admin]
       description: 'Returns a list of users stored in the database.
       
       
         This endpoint requires the authenticated user to have one of the following roles:
-        **admin**.'
+        **user, admin**.'
       
       tags:
       - users
@@ -555,9 +555,264 @@ paths:
                     example: User not found
       security:
       - bearerAuth: []
+  /ads/{observer_id}/{timestamp}.{ad_id}/attributes:
+    get:
+      summary: Retrieve all attributes for an ad.
+      description: Retrieve all custom attributes for the specified ad.
+      
+      parameters:
+      - in: path
+        name: observer_id
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: timestamp
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: ad_id
+        required: true
+        schema:
+          type: string
+      tags:
+      - ads/attributes
+      responses:
+        200:
+          description: A successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ad_id:
+                    type: string
+                  observer:
+                    type: string
+                  timestamp:
+                    type: integer
+                  attributes:
+                    type: object
+                    additionalProperties:
+                      type: object
+                      properties:
+                        value:
+                          type: string
+                        created_at:
+                          type: integer
+                        created_by:
+                          type: string
+                        modified_at:
+                          type: integer
+                        modified_by:
+                          type: string
+        400:
+          description: A failed response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  comment:
+                    type: string
+                    example: ERROR_RETRIEVING_ATTRIBUTES
+      security:
+      - bearerAuth: []
+    put:
+      summary: Add or update ad attributes in the database. [allows - user, admin]
+      description: 'Add or update custom attributes for the specified ad in the database.
+      
+      
+        This endpoint requires the authenticated user to have one of the following roles:
+        **user, admin**.'
+      
+      parameters:
+      - in: path
+        name: observer_id
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: timestamp
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: ad_id
+        required: true
+        schema:
+          type: string
+      tags:
+      - ads/attributes
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                attribute:
+                  type: object
+                  properties:
+                    key:
+                      type: string
+                    value:
+                      type: string
+      responses:
+        200:
+          description: A successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  comment:
+                    type: string
+        400:
+          description: A failed response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  comment:
+                    type: string
+                    example: AD_NOT_FOUND
+      security:
+      - bearerAuth: []
+  /ads/{observer_id}/{timestamp}.{ad_id}/attributes/{attribute_key}:
+    get:
+      summary: Retrieve a single attribute for an ad.
+      description: Retrieve a specific custom attribute for the specified ad.
+      
+      parameters:
+      - in: path
+        name: observer_id
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: timestamp
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: ad_id
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: attribute_key
+        required: true
+        schema:
+          type: string
+      tags:
+      - ads/attributes
+      responses:
+        200:
+          description: A successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  key:
+                    type: string
+                  value:
+                    type: string
+                  created_at:
+                    type: integer
+                  created_by:
+                    type: string
+                  modified_at:
+                    type: integer
+                  modified_by:
+                    type: string
+        400:
+          description: A failed response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  comment:
+                    type: string
+                    example: ATTRIBUTE_NOT_FOUND
+      security:
+      - bearerAuth: []
+    delete:
+      summary: Delete ad attributes from the database. [allows - user, admin]
+      description: 'Delete custom attributes for the specified ad in the database.
+      
+      
+        This endpoint requires the authenticated user to have one of the following roles:
+        **user, admin**.'
+      
+      parameters:
+      - in: path
+        name: observer_id
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: timestamp
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: ad_id
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: attribute_key
+        required: true
+        schema:
+          type: string
+      tags:
+      - ads/attributes
+      responses:
+        200:
+          description: A successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  comment:
+                    type: string
+        400:
+          description: A failed response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  comment:
+                    type: string
+                    example: ERROR_DELETING_ATTRIBUTE
+      security:
+      - bearerAuth: []
   /ads/{observer_id}:
     get:
-      summary: Retrieve the access cache for an observer.
+      summary: Retrieve the access cache for an observer and the ads that passed RDO construction.
       description: Retrieve the quick access cache for the specified observer.
       
       parameters:
@@ -580,6 +835,10 @@ paths:
                     type: boolean
                   data:
                     type: object
+                  expanded:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Ad'
         400:
           description: A failed response
           content:
@@ -723,7 +982,7 @@ paths:
       - bearerAuth: []
   /ads:
     get:
-      summary: Retrieve the ads stream index.
+      summary: Retrieve the ads stream index as a presigned URL and the ads that passed RDO construction.
       description: Retrieve the ads stream index from the S3 bucket, or recompute it if
         it is older than 24 hours.
       
@@ -741,6 +1000,10 @@ paths:
                     type: boolean
                   presigned_url:
                     type: string
+                  expanded:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Ad'
         500:
           description: A failed response
           content:
@@ -1084,9 +1347,69 @@ paths:
                     example: 'MISSING_PARAMETERS: observer_id, timestamp, ad_id'
       security:
       - bearerAuth: []
+  /ads/{observer_id}/{timestamp}.{ad_id}/request_index:
+    get:
+      summary: Request that a specific ad be indexed for querying. This should be triggered automatically when an ad has been RDO-processed.
+      description: This endpoint should not be called manually, but is triggered when the
+        RDO construction is complete for the specified ad.
+      
+      parameters:
+      - name: observer_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: timestamp
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: ad_id
+        in: path
+        required: true
+        schema:
+          type: string
+      tags:
+      - rdo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                observer_id:
+                  type: string
+                timestamp:
+                  type: string
+                ad_id:
+                  type: string
+      responses:
+        200:
+          description: A successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        400:
+          description: A failed response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  comment:
+                    type: string
+                    example: 'MISSING_PARAMETERS: observer_id, timestamp, ad_id'
   /ads/query:
     post:
-      summary: Query ads based on specified criteria.
+      summary: Query ads based on specified criteria and return the matching ad paths and the expanded ads.
       description: Perform a query on ads using the specified criteria and return the matching
         ad paths.
       
@@ -1120,6 +1443,10 @@ paths:
                     type: array
                     items:
                       type: string
+                  expanded:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Ad'
         400:
           description: A failed response
           content:
@@ -1167,261 +1494,6 @@ paths:
                     example: false
                   comment:
                     type: string
-      security:
-      - bearerAuth: []
-  /ads/{observer_id}/{timestamp}.{ad_id}/attributes:
-    get:
-      summary: Retrieve all attributes for an ad.
-      description: Retrieve all custom attributes for the specified ad.
-      
-      parameters:
-      - in: path
-        name: observer_id
-        required: true
-        schema:
-          type: string
-      - in: path
-        name: timestamp
-        required: true
-        schema:
-          type: string
-      - in: path
-        name: ad_id
-        required: true
-        schema:
-          type: string
-      tags:
-      - ads/attributes
-      responses:
-        200:
-          description: A successful response
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  ad_id:
-                    type: string
-                  observer:
-                    type: string
-                  timestamp:
-                    type: integer
-                  attributes:
-                    type: object
-                    additionalProperties:
-                      type: object
-                      properties:
-                        value:
-                          type: string
-                        created_at:
-                          type: integer
-                        created_by:
-                          type: string
-                        modified_at:
-                          type: integer
-                        modified_by:
-                          type: string
-        400:
-          description: A failed response
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: false
-                  comment:
-                    type: string
-                    example: ERROR_RETRIEVING_ATTRIBUTES
-      security:
-      - bearerAuth: []
-    put:
-      summary: Add or update ad attributes in the database. [allows - user, admin]
-      description: 'Add or update custom attributes for the specified ad in the database.
-      
-      
-        This endpoint requires the authenticated user to have one of the following roles:
-        **user, admin**.'
-      
-      parameters:
-      - in: path
-        name: observer_id
-        required: true
-        schema:
-          type: string
-      - in: path
-        name: timestamp
-        required: true
-        schema:
-          type: string
-      - in: path
-        name: ad_id
-        required: true
-        schema:
-          type: string
-      tags:
-      - ads/attributes
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                attribute:
-                  type: object
-                  properties:
-                    key:
-                      type: string
-                    value:
-                      type: string
-      responses:
-        200:
-          description: A successful response
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  comment:
-                    type: string
-        400:
-          description: A failed response
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: false
-                  comment:
-                    type: string
-                    example: AD_NOT_FOUND
-      security:
-      - bearerAuth: []
-  /ads/{observer_id}/{timestamp}.{ad_id}/attributes/{attribute_key}:
-    get:
-      summary: Retrieve a single attribute for an ad.
-      description: Retrieve a specific custom attribute for the specified ad.
-      
-      parameters:
-      - in: path
-        name: observer_id
-        required: true
-        schema:
-          type: string
-      - in: path
-        name: timestamp
-        required: true
-        schema:
-          type: string
-      - in: path
-        name: ad_id
-        required: true
-        schema:
-          type: string
-      - in: path
-        name: attribute_key
-        required: true
-        schema:
-          type: string
-      tags:
-      - ads/attributes
-      responses:
-        200:
-          description: A successful response
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  key:
-                    type: string
-                  value:
-                    type: string
-                  created_at:
-                    type: integer
-                  created_by:
-                    type: string
-                  modified_at:
-                    type: integer
-                  modified_by:
-                    type: string
-        400:
-          description: A failed response
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: false
-                  comment:
-                    type: string
-                    example: ATTRIBUTE_NOT_FOUND
-      security:
-      - bearerAuth: []
-    delete:
-      summary: Delete ad attributes from the database. [allows - user, admin]
-      description: 'Delete custom attributes for the specified ad in the database.
-      
-      
-        This endpoint requires the authenticated user to have one of the following roles:
-        **user, admin**.'
-      
-      parameters:
-      - in: path
-        name: observer_id
-        required: true
-        schema:
-          type: string
-      - in: path
-        name: timestamp
-        required: true
-        schema:
-          type: string
-      - in: path
-        name: ad_id
-        required: true
-        schema:
-          type: string
-      - in: path
-        name: attribute_key
-        required: true
-        schema:
-          type: string
-      tags:
-      - ads/attributes
-      responses:
-        200:
-          description: A successful response
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  comment:
-                    type: string
-        400:
-          description: A failed response
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: false
-                  comment:
-                    type: string
-                    example: ERROR_DELETING_ATTRIBUTE
       security:
       - bearerAuth: []
   /medias:
@@ -1741,70 +1813,56 @@ paths:
       - bearerAuth: []
   /projects/{project_id}:
     get:
-      summary: Get a project by ID.
+      summary: None
+      description: 'security:
+      
+        - bearerAuth: []'
+      
       parameters:
-      - in: path
-        name: project_id
+      - name: project_id
+        in: path
         required: true
         schema:
           type: string
-      tags:
-      - projects
       responses:
         200:
-          description: Project retrieved successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Project'
-        404:
-          description: Project not found
-      security:
-      - bearerAuth: []
+          description: OK
+        400:
+          description: Bad Request
     put:
-      summary: Update a project by ID.
+      summary: None
+      description: 'security:
+      
+        - bearerAuth: []'
+      
       parameters:
-      - in: path
-        name: project_id
+      - name: project_id
+        in: path
         required: true
         schema:
           type: string
-      tags:
-      - projects
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Project'
       responses:
         200:
-          description: Project updated successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Project'
-        404:
-          description: Project not found
-      security:
-      - bearerAuth: []
+          description: OK
+        400:
+          description: Bad Request
     delete:
-      summary: Delete a project by ID.
+      summary: None
+      description: 'security:
+      
+        - bearerAuth: []'
+      
       parameters:
-      - in: path
-        name: project_id
+      - name: project_id
+        in: path
         required: true
         schema:
           type: string
-      tags:
-      - projects
       responses:
-        204:
-          description: Project deleted successfully
-        404:
-          description: Project not found
-      security:
-      - bearerAuth: []
+        200:
+          description: OK
+        400:
+          description: Bad Request
   /reflect:
     post:
       summary: Reflect the event back to the client.
@@ -1862,6 +1920,29 @@ components:
       scheme: bearer
       bearerFormat: JWT
   schemas:
+    Ad:
+      properties:
+        observer_id:
+          title: Observer Id
+          type: string
+        ad_id:
+          title: Ad Id
+          type: string
+        timestamp:
+          title: Timestamp
+          type: string
+        attributes:
+          anyOf:
+          - type: object
+          - type: 'null'
+          title: Attributes
+      required:
+      - observer_id
+      - ad_id
+      - timestamp
+      - attributes
+      title: Ad
+      type: object
     Project:
       properties:
         id:
