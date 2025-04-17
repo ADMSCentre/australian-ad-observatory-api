@@ -1943,6 +1943,16 @@ components:
       - attributes
       title: Ad
       type: object
+    BaseCell:
+      properties:
+        config:
+          anyOf:
+          - type: object
+          - type: 'null'
+          default: null
+          title: Config
+      title: BaseCell
+      type: object
     Project:
       properties:
         id:
@@ -1997,6 +2007,12 @@ components:
       type: object
     QueryCell:
       properties:
+        config:
+          anyOf:
+          - type: object
+          - type: 'null'
+          default: null
+          title: Config
         id:
           title: Id
           type: string
@@ -2035,26 +2051,14 @@ components:
           type: string
         config:
           anyOf:
-          - $ref: '#/components/schemas/QueryResultConfig'
+          - type: object
           - type: 'null'
           default: null
+          title: Config
       required:
       - id
       - type
       title: QueryResult
-      type: object
-    QueryResultConfig:
-      properties:
-        sort:
-          title: Sort
-          type: string
-        groupBy:
-          title: Groupby
-          type: string
-      required:
-      - sort
-      - groupBy
-      title: QueryResultConfig
       type: object
     TeamMember:
       properties:
@@ -2071,6 +2075,12 @@ components:
       type: object
     TextCell:
       properties:
+        config:
+          anyOf:
+          - type: object
+          - type: 'null'
+          default: null
+          title: Config
         id:
           title: Id
           type: string
