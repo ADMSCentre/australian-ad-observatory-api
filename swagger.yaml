@@ -1443,6 +1443,10 @@ paths:
                     type: array
                     items:
                       type: string
+                  expand:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Ad'
         400:
           description: A failed response
           content:
