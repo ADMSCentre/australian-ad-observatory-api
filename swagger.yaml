@@ -867,6 +867,78 @@ paths:
                     example: NO_CACHE_FOUND_FOR_OBSERVER
       security:
       - bearerAuth: []
+  /ads/batch:
+    post:
+      summary: Retrieve metadata associated with a batch of ads.
+      description: Given a list of ads in the request body (with observer_id, timestamp
+        and ad_id fields for each ad), as well as a list of metadata types to include, return
+        the metadata for each ad in the list.
+      
+      tags:
+      - ads
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ads:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      observer_id:
+                        type: string
+                      timestamp:
+                        type: string
+                      ad_id:
+                        type: string
+                metadata_types:
+                  type: array
+                  items:
+                    type: string
+                    enum:
+                    - attributes
+                    - rdo
+      responses:
+        200:
+          description: A successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  ads:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        observer_id:
+                          type: string
+                        timestamp:
+                          type: string
+                        ad_id:
+                          type: string
+                        metadata:
+                          type: object
+        400:
+          description: A failed response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  comment:
+                    type: string
+                    example: Invalid request
+      security:
+      - bearerAuth: []
   /ads/{observer_id}/{timestamp}.{ad_id}/stitching/frames:
     get:
       summary: Get the presigned URLs for the frames of an ad's stitching.
@@ -1354,36 +1426,23 @@ paths:
         RDO construction is complete for the specified ad.
       
       parameters:
-      - name: observer_id
-        in: path
+      - in: path
+        name: observer_id
         required: true
         schema:
           type: string
-      - name: timestamp
-        in: path
+      - in: path
+        name: timestamp
         required: true
         schema:
           type: string
-      - name: ad_id
-        in: path
+      - in: path
+        name: ad_id
         required: true
         schema:
           type: string
       tags:
       - rdo
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                observer_id:
-                  type: string
-                timestamp:
-                  type: string
-                ad_id:
-                  type: string
       responses:
         200:
           description: A successful response
