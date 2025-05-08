@@ -939,6 +939,66 @@ paths:
                     example: Invalid request
       security:
       - bearerAuth: []
+  /ads/batch/presign:
+    post:
+      summary: Attach metadata to a batch of ads and return a presigned URL for the batch.
+      description: Behaves like the ads/batch endpoint, but returns a presigned URL for
+        the batch instead of the metadata itself.
+      
+      tags:
+      - ads
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ads:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      observer_id:
+                        type: string
+                      timestamp:
+                        type: string
+                      ad_id:
+                        type: string
+                metadata_types:
+                  type: array
+                  items:
+                    type: string
+                    enum:
+                    - attributes
+                    - rdo
+      responses:
+        200:
+          description: A successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  presigned_url:
+                    type: string
+        400:
+          description: A failed response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  comment:
+                    type: string
+                    example: Invalid request
+      security:
+      - bearerAuth: []
   /ads/{observer_id}/{timestamp}.{ad_id}/stitching/frames:
     get:
       summary: Get the presigned URLs for the frames of an ad's stitching.
