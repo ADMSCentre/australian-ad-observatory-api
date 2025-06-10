@@ -810,6 +810,270 @@ paths:
                     example: ERROR_DELETING_ATTRIBUTE
       security:
       - bearerAuth: []
+  /tags:
+    post:
+      summary: Create a new tag.
+      tags:
+      - tags
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                hex:
+                  type: string
+      responses:
+        201:
+          description: Tag created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  tag:
+                    $ref: '#/components/schemas/Tag'
+      security:
+      - bearerAuth: []
+    get:
+      summary: List all tags.
+      tags:
+      - tags
+      responses:
+        200:
+          description: A list of tags
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Tag'
+      security:
+      - bearerAuth: []
+  /tags/{tag_id}:
+    get:
+      summary: Retrieve a tag by ID.
+      parameters:
+      - name: tag_id
+        in: path
+        required: true
+        schema:
+          type: string
+      tags:
+      - tags
+      responses:
+        200:
+          description: Tag retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tag'
+        404:
+          description: Tag not found
+      security:
+      - bearerAuth: []
+    put:
+      summary: Update an existing tag.
+      parameters:
+      - name: tag_id
+        in: path
+        required: true
+        schema:
+          type: string
+      tags:
+      - tags
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                hex:
+                  type: string
+      responses:
+        200:
+          description: Tag updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  tag:
+                    $ref: '#/components/schemas/Tag'
+        404:
+          description: Tag not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  comment:
+                    type: string
+                    example: Tag not found
+      security:
+      - bearerAuth: []
+    delete:
+      summary: Delete a tag by ID.
+      parameters:
+      - name: tag_id
+        in: path
+        required: true
+        schema:
+          type: string
+      tags:
+      - tags
+      responses:
+        200:
+          description: Tag deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        404:
+          description: Tag not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  comment:
+                    type: string
+                    example: Tag not found
+      security:
+      - bearerAuth: []
+  /ads/{observer_id}/{timestamp}.{ad_id}/tags:
+    get:
+      summary: Retrieve all tag IDs for an ad.
+      parameters:
+      - in: path
+        name: observer_id
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: timestamp
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: ad_id
+        required: true
+        schema:
+          type: string
+      tags:
+      - ads/tags
+      responses:
+        200:
+          description: A successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  tag_ids:
+                    type: array
+                    items:
+                      type: string
+        400:
+          description: A failed response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  comment:
+                    type: string
+                    example: ERROR_RETRIEVING_TAG_IDS
+      security:
+      - bearerAuth: []
+    put:
+      summary: Update tag IDs for an ad.
+      parameters:
+      - in: path
+        name: observer_id
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: timestamp
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: ad_id
+        required: true
+        schema:
+          type: string
+      tags:
+      - ads/tags
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tag_ids:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        200:
+          description: Tag IDs updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        400:
+          description: A failed response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  comment:
+                    type: string
+                    example: ERROR_UPDATING_TAG_IDS
+      security:
+      - bearerAuth: []
   /ads/{observer_id}:
     get:
       summary: Retrieve the access cache for an observer and the ads that passed RDO construction.
@@ -958,6 +1222,7 @@ paths:
                     type: string
                     enum:
                     - attributes
+                    - tags
                     - rdo
       responses:
         200:
@@ -1029,6 +1294,7 @@ paths:
                     type: string
                     enum:
                     - attributes
+                    - tags
                     - rdo
       responses:
         200:
@@ -2120,6 +2386,21 @@ components:
       - attributes
       title: Ad
       type: object
+    AdTag:
+      properties:
+        id:
+          title: Id
+          type: string
+        tags:
+          items:
+            type: string
+          title: Tags
+          type: array
+      required:
+      - id
+      - tags
+      title: AdTag
+      type: object
     BaseCell:
       properties:
         config:
@@ -2236,6 +2517,27 @@ components:
       - id
       - type
       title: QueryResult
+      type: object
+    Tag:
+      properties:
+        id:
+          title: Id
+          type: string
+        name:
+          title: Name
+          type: string
+        description:
+          title: Description
+          type: string
+        hex:
+          title: Hex
+          type: string
+      required:
+      - id
+      - name
+      - description
+      - hex
+      title: Tag
       type: object
     TeamMember:
       properties:
