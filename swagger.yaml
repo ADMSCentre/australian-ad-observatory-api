@@ -867,6 +867,64 @@ paths:
                     example: NO_CACHE_FOUND_FOR_OBSERVER
       security:
       - bearerAuth: []
+  /ads/{observer_id}/recent:
+    get:
+      summary: Retrieve a list of ads that passed RDO construction by a specific observer in the last 7 days.
+      description: This is an open endpoint "authenticated" by the observer_id in the path.
+      
+      parameters:
+      - in: path
+        name: observer_id
+        required: true
+        description: The full ID of the observer.
+        schema:
+          type: string
+      tags:
+      - ads
+      responses:
+        200:
+          description: A list of ad paths seen by the observer in the last 7 days.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  ads:
+                    type: array
+                    items:
+                      type: string
+                    example:
+                    - observer-id-123/temp/1678886400000.ad-id-abc
+                    - observer-id-123/temp/1678972800000.ad-id-def
+        400:
+          description: A failed response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  comment:
+                    type: string
+                    example: OBSERVER_NOT_PROVIDED_IN_PATH
+        404:
+          description: No cache found for observer
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  comment:
+                    type: string
+                    example: NO_CACHE_FOUND_FOR_OBSERVER
   /ads/batch:
     post:
       summary: Retrieve metadata associated with a batch of ads.
