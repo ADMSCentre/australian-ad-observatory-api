@@ -1850,6 +1850,41 @@ paths:
                   comment:
                     type: string
                     example: 'MISSING_PARAMETERS: observer_id, timestamp, ad_id'
+  /ads/query/new-session:
+    get:
+      summary: Create a new query session for ads.
+      description: This endpoint is used to create a new query session for ads, allowing
+        users to perform queries on ads.
+      
+      tags:
+      - ads
+      responses:
+        200:
+          description: A successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  session_id:
+                    type: string
+        400:
+          description: A failed response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  comment:
+                    type: string
+                    example: SESSION_CREATION_FAILED
+      security:
+      - bearerAuth: []
   /ads/query:
     post:
       summary: Query ads based on specified criteria and return the matching ad paths and the expanded ads.
@@ -1872,6 +1907,22 @@ paths:
                   type: array
                   items:
                     type: object
+                session_id:
+                  type: string
+                  example: my-session-id
+                context:
+                  type: object
+                  description: Additional context for the query.
+                  properties:
+                    continuation_key:
+                      type: string
+                      description: The continuation key for the next page of results, if
+                        applicable.
+                      example: '1729261457039'
+                    page_size:
+                      type: integer
+                      description: The number of results to return per page.
+                      example: 1000
       responses:
         200:
           description: A successful response
@@ -1890,6 +1941,18 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/Ad'
+                  context:
+                    type: object
+                    properties:
+                      continuation_key:
+                        type: string
+                        description: The continuation key for the next page of results,
+                          if applicable.
+                        example: 1729261457039
+                      total_results:
+                        type: integer
+                        description: The total number of results available for the query.
+                        example: 10000
         400:
           description: A failed response
           content:
