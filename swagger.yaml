@@ -2096,6 +2096,51 @@ paths:
                     type: string
       security:
       - bearerAuth: []
+  /observers/{observer_id}/csr:
+    get:
+      summary: Get the CSR for an observer. [allows - user, admin]
+      description: 'Retrieve the presigned URL for the latest CSR of an observer.
+      
+      
+        This endpoint requires the authenticated user to have one of the following roles:
+        **user, admin**.'
+      
+      parameters:
+      - name: observer_id
+        in: path
+        required: true
+        schema:
+          type: string
+      tags:
+      - observers
+      responses:
+        200:
+          description: A successful response with the presigned URL
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  presign_url:
+                    type: string
+        404:
+          description: No CSR found for the observer
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  comment:
+                    type: string
+                    example: No CSR found for this observer.
+      security:
+      - bearerAuth: []
   /medias:
     get:
       summary: Get a media file from S3 from a given path in the query string.
