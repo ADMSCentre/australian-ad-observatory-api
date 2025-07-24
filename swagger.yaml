@@ -21,7 +21,7 @@ externalDocs:
   description: Find out more about the Australian Ad Observatory
   url: https://www.admscentre.org.au/adobservatory/
 servers:
-- url: https://f06kj1k332.execute-api.ap-southeast-2.amazonaws.com/dev/
+- url: https://f06kj1k332.execute-api.ap-southeast-2.amazonaws.com/prod/
 paths:
   /auth/login:
     post:
@@ -105,35 +105,36 @@ paths:
                   comment:
                     type: string
                     example: VERIFY_FAILED
-  /auth/logout:
-    post:
-      summary: Log the user out.
-      description: Log the user out and disable the JSON web token to prevent further authentication
-        using the same token.
-      
+  /auth/cilogon/login:
+    get:
+      summary: Initiates CILogon OIDC login flow.
       tags:
       - auth
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                token:
-                  type: string
+      - cilogon
+      description: Redirects the user to the CILogon authorization endpoint to start the
+        OpenID Connect authentication flow. Sets a temporary state cookie for CSRF protection.
+      parameters: []
       responses:
-        200:
-          description: A successful logout
-          content:
-            application/json:
+        302:
+          description: Successful initiation of the login flow. Redirects the user's browser
+            to CILogon.
+          headers:
+            Location:
+              description: The URL of the CILogon authorization endpoint where the user
+                should be redirected.
               schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-        400:
-          description: A failed logout
+                type: string
+                format: uri
+            Set-Cookie:
+              description: Sets the `cilogon_oauth_state` cookie containing the signed state
+                value for CSRF protection and storing the intended redirect URL after authentication.
+                The cookie is HttpOnly, Secure, SameSite=Lax, and has a short expiry.
+              schema:
+                type: string
+                example: cilogon_oauth_state=...signed_state_value...; Max-Age=600; Path=/;
+                  HttpOnly; Secure; SameSite=Lax
+        500:
+          description: Server configuration error or internal failure during login initiation.
           content:
             application/json:
               schema:
@@ -144,37 +145,52 @@ paths:
                     example: false
                   comment:
                     type: string
-                    example: LOGOUT_FAILED
-  /auth/refresh:
-    post:
-      summary: Refresh the JSON web token.
-      description: Refresh the JSON web token to extend the session.
-      
+                    example: Server configuration error - CILogon metadata not loaded.
+  /auth/cilogon/authorize:
+    get:
+      summary: Handles the callback from CILogon after authentication.
       tags:
       - auth
-      requestBody:
+      - cilogon
+      description: Processes the authorization code and state returned by CILogon. Verifies
+        the state against the cookie, fetches user information, creates an application-specific
+        JWT, and redirects the user back to the frontend application with the token.
+      parameters:
+      - name: code
+        in: query
         required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                token:
-                  type: string
+        description: The authorization code issued by CILogon upon successful user authentication.
+        schema:
+          type: string
+      - name: state
+        in: query
+        required: true
+        description: The opaque state value returned by CILogon. Used for CSRF protection
+          verification against the value stored in the `cilogon_oauth_state` cookie.
+        schema:
+          type: string
       responses:
-        200:
-          description: A successful refresh
-          content:
-            application/json:
+        302:
+          description: Successful authentication and authorization. Redirects the user's
+            browser back to the frontend application, embedding the application JWT in the
+            URL fragment (#token=...). Clears the state cookie.
+          headers:
+            Location:
+              description: The URL of the frontend application where the user should be
+                redirected, including the application JWT in the fragment.
               schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  token:
-                    type: string
+                type: string
+                format: uri
+                example: https://your-frontend.com/#token=app_jwt_token
+            Set-Cookie:
+              description: Clears the `cilogon_oauth_state` cookie as it is no longer needed.
+              schema:
+                type: string
+                example: cilogon_oauth_state=deleted; Max-Age=0; Path=/; HttpOnly; Secure;
+                  SameSite=Lax
         400:
-          description: A failed refresh
+          description: Bad request due to missing parameters, state mismatch (CSRF suspected),
+            or invalid/expired state cookie.
           content:
             application/json:
               schema:
@@ -185,7 +201,21 @@ paths:
                     example: false
                   comment:
                     type: string
-                    example: REFRESH_FAILED
+                    example: Missing state, code, or cookie
+        500:
+          description: Internal server error during callback processing (e.g., failure to
+            exchange code, fetch user info, or create JWT).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  comment:
+                    type: string
+                    example: Authentication failed during callback
   /users:
     get:
       summary: Returns a list of users from the database (admin only) [allows - user, admin]
@@ -207,15 +237,17 @@ paths:
                 items:
                   type: object
                   properties:
+                    id:
+                      type: string
                     username:
                       type: string
                     enabled:
                       type: boolean
-                    password:
-                      type: string
                     full_name:
                       type: string
                     role:
+                      type: string
+                    provider:
                       type: string
         400:
           description: A failed response
@@ -317,6 +349,72 @@ paths:
                     example: UNAUTHORISED
       security:
       - bearerAuth: []
+  /users/{user_id}/role:
+    patch:
+      summary: Change a user's role (admin only) [allows - admin]
+      description: 'Change the role of a user in the database.
+      
+      
+        This endpoint requires the authenticated user to have one of the following roles:
+        **admin**.'
+      
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+      tags:
+      - users
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role:
+                  type: string
+      responses:
+        200:
+          description: Role changed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  comment:
+                    type: string
+        400:
+          description: Role change failed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  comment:
+                    type: string
+                    example: User not found
+        403:
+          description: Unauthorized access
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  comment:
+                    type: string
+                    example: UNAUTHORISED
+      security:
+      - bearerAuth: []
   /users/{username}:
     patch:
       summary: Edit a user's information (self or admin only) [allows - user, admin]
@@ -328,12 +426,11 @@ paths:
         **user, admin**.'
       
       parameters:
-      - in: path
-        name: username
+      - name: username
+        in: path
         required: true
         schema:
           type: string
-        description: The username of the user to edit
       tags:
       - users
       requestBody:
@@ -400,12 +497,11 @@ paths:
         **user, admin**.'
       
       parameters:
-      - in: path
-        name: username
+      - name: username
+        in: path
         required: true
         schema:
           type: string
-        description: The username of the user to get
       tags:
       - users
       responses:
@@ -416,12 +512,12 @@ paths:
               schema:
                 type: object
                 properties:
+                  id:
+                    type: string
                   username:
                     type: string
                   enabled:
                     type: boolean
-                  password:
-                    type: string
                   full_name:
                     type: string
                   role:
@@ -456,19 +552,18 @@ paths:
       - bearerAuth: []
     delete:
       summary: Delete a user (admin only) [allows - admin]
-      description: 'Delete a user by moving their data to the recycle bin.
+      description: 'Delete a user by removing their data from the database.
       
       
         This endpoint requires the authenticated user to have one of the following roles:
         **admin**.'
       
       parameters:
-      - in: path
-        name: username
+      - name: username
+        in: path
         required: true
         schema:
           type: string
-        description: The username of the user to delete
       tags:
       - users
       responses:
@@ -530,12 +625,12 @@ paths:
               schema:
                 type: object
                 properties:
+                  id:
+                    type: string
                   username:
                     type: string
                   enabled:
                     type: boolean
-                  password:
-                    type: string
                   full_name:
                     type: string
                   role:
@@ -561,18 +656,18 @@ paths:
       description: Retrieve all custom attributes for the specified ad.
       
       parameters:
-      - in: path
-        name: observer_id
+      - name: observer_id
+        in: path
         required: true
         schema:
           type: string
-      - in: path
-        name: timestamp
+      - name: timestamp
+        in: path
         required: true
         schema:
           type: string
-      - in: path
-        name: ad_id
+      - name: ad_id
+        in: path
         required: true
         schema:
           type: string
@@ -631,18 +726,18 @@ paths:
         **user, admin**.'
       
       parameters:
-      - in: path
-        name: observer_id
+      - name: observer_id
+        in: path
         required: true
         schema:
           type: string
-      - in: path
-        name: timestamp
+      - name: timestamp
+        in: path
         required: true
         schema:
           type: string
-      - in: path
-        name: ad_id
+      - name: ad_id
+        in: path
         required: true
         schema:
           type: string
@@ -695,23 +790,23 @@ paths:
       description: Retrieve a specific custom attribute for the specified ad.
       
       parameters:
-      - in: path
-        name: observer_id
+      - name: observer_id
+        in: path
         required: true
         schema:
           type: string
-      - in: path
-        name: timestamp
+      - name: timestamp
+        in: path
         required: true
         schema:
           type: string
-      - in: path
-        name: ad_id
+      - name: ad_id
+        in: path
         required: true
         schema:
           type: string
-      - in: path
-        name: attribute_key
+      - name: attribute_key
+        in: path
         required: true
         schema:
           type: string
@@ -761,23 +856,23 @@ paths:
         **user, admin**.'
       
       parameters:
-      - in: path
-        name: observer_id
+      - name: observer_id
+        in: path
         required: true
         schema:
           type: string
-      - in: path
-        name: timestamp
+      - name: timestamp
+        in: path
         required: true
         schema:
           type: string
-      - in: path
-        name: ad_id
+      - name: ad_id
+        in: path
         required: true
         schema:
           type: string
-      - in: path
-        name: attribute_key
+      - name: attribute_key
+        in: path
         required: true
         schema:
           type: string
@@ -970,18 +1065,18 @@ paths:
     get:
       summary: Retrieve all tag IDs for an ad.
       parameters:
-      - in: path
-        name: observer_id
+      - name: observer_id
+        in: path
         required: true
         schema:
           type: string
-      - in: path
-        name: timestamp
+      - name: timestamp
+        in: path
         required: true
         schema:
           type: string
-      - in: path
-        name: ad_id
+      - name: ad_id
+        in: path
         required: true
         schema:
           type: string
@@ -1020,18 +1115,18 @@ paths:
     put:
       summary: Update tag IDs for an ad.
       parameters:
-      - in: path
-        name: observer_id
+      - name: observer_id
+        in: path
         required: true
         schema:
           type: string
-      - in: path
-        name: timestamp
+      - name: timestamp
+        in: path
         required: true
         schema:
           type: string
-      - in: path
-        name: ad_id
+      - name: ad_id
+        in: path
         required: true
         schema:
           type: string
@@ -1080,8 +1175,8 @@ paths:
       description: Retrieve the quick access cache for the specified observer.
       
       parameters:
-      - in: path
-        name: observer_id
+      - name: observer_id
+        in: path
         required: true
         schema:
           type: string
@@ -1137,10 +1232,9 @@ paths:
       description: This is an open endpoint "authenticated" by the observer_id in the path.
       
       parameters:
-      - in: path
-        name: observer_id
+      - name: observer_id
+        in: path
         required: true
-        description: The full ID of the observer.
         schema:
           type: string
       tags:
@@ -1330,18 +1424,18 @@ paths:
         which is the cropped version of the ad that removes the irrelevant parts.
       
       parameters:
-      - in: path
-        name: observer_id
+      - name: observer_id
+        in: path
         required: true
         schema:
           type: string
-      - in: path
-        name: timestamp
+      - name: timestamp
+        in: path
         required: true
         schema:
           type: string
-      - in: path
-        name: ad_id
+      - name: ad_id
+        in: path
         required: true
         schema:
           type: string
@@ -1386,18 +1480,18 @@ paths:
       description: Retrieve presigned URLs for the frames of the specified ad.
       
       parameters:
-      - in: path
-        name: observer_id
+      - name: observer_id
+        in: path
         required: true
         schema:
           type: string
-      - in: path
-        name: timestamp
+      - name: timestamp
+        in: path
         required: true
         schema:
           type: string
-      - in: path
-        name: ad_id
+      - name: ad_id
+        in: path
         required: true
         schema:
           type: string
@@ -1484,18 +1578,18 @@ paths:
         all the information, including any enrichments, for the specified ad.
       
       parameters:
-      - in: path
-        name: observer_id
+      - name: observer_id
+        in: path
         required: true
         schema:
           type: string
-      - in: path
-        name: timestamp
+      - name: timestamp
+        in: path
         required: true
         schema:
           type: string
-      - in: path
-        name: ad_id
+      - name: ad_id
+        in: path
         required: true
         schema:
           type: string
@@ -1536,18 +1630,18 @@ paths:
         positions.
       
       parameters:
-      - in: path
-        name: observer_id
+      - name: observer_id
+        in: path
         required: true
         schema:
           type: string
-      - in: path
-        name: timestamp
+      - name: timestamp
+        in: path
         required: true
         schema:
           type: string
-      - in: path
-        name: ad_id
+      - name: ad_id
+        in: path
         required: true
         schema:
           type: string
@@ -1614,18 +1708,18 @@ paths:
         information.
       
       parameters:
-      - in: path
-        name: observer_id
+      - name: observer_id
+        in: path
         required: true
         schema:
           type: string
-      - in: path
-        name: timestamp
+      - name: timestamp
+        in: path
         required: true
         schema:
           type: string
-      - in: path
-        name: ad_id
+      - name: ad_id
+        in: path
         required: true
         schema:
           type: string
@@ -1695,18 +1789,18 @@ paths:
       description: Retrieve the width and height of the specified ad.
       
       parameters:
-      - in: path
-        name: observer_id
+      - name: observer_id
+        in: path
         required: true
         schema:
           type: string
-      - in: path
-        name: timestamp
+      - name: timestamp
+        in: path
         required: true
         schema:
           type: string
-      - in: path
-        name: ad_id
+      - name: ad_id
+        in: path
         required: true
         schema:
           type: string
@@ -1751,18 +1845,18 @@ paths:
         and rankings.
       
       parameters:
-      - in: path
-        name: observer_id
+      - name: observer_id
+        in: path
         required: true
         schema:
           type: string
-      - in: path
-        name: timestamp
+      - name: timestamp
+        in: path
         required: true
         schema:
           type: string
-      - in: path
-        name: ad_id
+      - name: ad_id
+        in: path
         required: true
         schema:
           type: string
@@ -1810,18 +1904,18 @@ paths:
         RDO construction is complete for the specified ad.
       
       parameters:
-      - in: path
-        name: observer_id
+      - name: observer_id
+        in: path
         required: true
         schema:
           type: string
-      - in: path
-        name: timestamp
+      - name: timestamp
+        in: path
         required: true
         schema:
           type: string
-      - in: path
-        name: ad_id
+      - name: ad_id
+        in: path
         required: true
         schema:
           type: string
@@ -2142,7 +2236,6 @@ paths:
         required: true
         schema:
           type: string
-        description: The key of the session.
       tags:
       - guests
       responses:
@@ -2185,7 +2278,6 @@ paths:
         required: true
         schema:
           type: string
-        description: The key of the session.
       tags:
       - guests
       responses:
@@ -2230,7 +2322,6 @@ paths:
         required: true
         schema:
           type: string
-        description: The key of the session.
       tags:
       - guests
       requestBody:
@@ -2369,6 +2460,300 @@ paths:
           description: OK
         400:
           description: Bad Request
+  /users/external:
+    get:
+      summary: Returns a list of external users from the database (admin only) [allows - admin]
+      description: 'Returns a list of external users (users whose only identity is from
+        CILogon) stored in the database.
+      
+      
+        This endpoint requires the authenticated user to have one of the following roles:
+        **admin**.'
+      
+      tags:
+      - users
+      responses:
+        200:
+          description: A successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    provider:
+                      type: string
+                      example: cilogon
+                    provider_user_id:
+                      type: string
+                    enabled:
+                      type: boolean
+                    full_name:
+                      type: string
+                    role:
+                      type: string
+                    email:
+                      type: string
+                    created_at:
+                      type: integer
+                      description: Unix timestamp
+        403:
+          description: Unauthorized access
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  comment:
+                    type: string
+                    example: UNAUTHORISED
+      security:
+      - bearerAuth: []
+  /users/external/{user_id}/enable:
+    post:
+      summary: Enable an external user (admin only) [allows - admin]
+      description: 'Enable an external user to allow them access to the API.
+      
+      
+        This endpoint requires the authenticated user to have one of the following roles:
+        **admin**.'
+      
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+      tags:
+      - users
+      responses:
+        200:
+          description: User enabled successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  comment:
+                    type: string
+        400:
+          description: User not found or operation failed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  comment:
+                    type: string
+                    example: User not found or not an external user
+        403:
+          description: Unauthorized access
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  comment:
+                    type: string
+                    example: UNAUTHORISED
+      security:
+      - bearerAuth: []
+  /users/external/{user_id}/disable:
+    post:
+      summary: Disable an external user (admin only) [allows - admin]
+      description: 'Disable an external user to revoke their access to the API.
+      
+      
+        This endpoint requires the authenticated user to have one of the following roles:
+        **admin**.'
+      
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+      tags:
+      - users
+      responses:
+        200:
+          description: User disabled successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  comment:
+                    type: string
+        400:
+          description: User not found or operation failed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  comment:
+                    type: string
+                    example: User not found or not an external user
+        403:
+          description: Unauthorized access
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  comment:
+                    type: string
+                    example: UNAUTHORISED
+      security:
+      - bearerAuth: []
+  /users/external/{user_id}:
+    delete:
+      summary: Delete an external user (admin only) [allows - admin]
+      description: 'Delete an external user from both users and user_identities tables.
+      
+      
+        This endpoint requires the authenticated user to have one of the following roles:
+        **admin**.'
+      
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+      tags:
+      - users
+      responses:
+        200:
+          description: User deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  comment:
+                    type: string
+        400:
+          description: User not found or operation failed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  comment:
+                    type: string
+                    example: User not found or not an external user
+        403:
+          description: Unauthorized access
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  comment:
+                    type: string
+                    example: UNAUTHORISED
+      security:
+      - bearerAuth: []
+    get:
+      summary: Get an external user from the database (admin only) [allows - admin]
+      description: 'Get an external user''s information stored in the database.
+      
+      
+        This endpoint requires the authenticated user to have one of the following roles:
+        **admin**.'
+      
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+      tags:
+      - users
+      responses:
+        200:
+          description: A successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  provider:
+                    type: string
+                    example: cilogon
+                  provider_user_id:
+                    type: string
+                  enabled:
+                    type: boolean
+                  full_name:
+                    type: string
+                  role:
+                    type: string
+                  created_at:
+                    type: integer
+                    description: Unix timestamp
+        400:
+          description: User not found or operation failed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  comment:
+                    type: string
+                    example: User not found or not an external user
+        403:
+          description: Unauthorized access
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  comment:
+                    type: string
+                    example: UNAUTHORISED
+      security:
+      - bearerAuth: []
   /reflect:
     post:
       summary: Reflect the event back to the client.
@@ -2449,7 +2834,63 @@ components:
       - attributes
       title: Ad
       type: object
+    AdAttribute:
+      properties:
+        observation_id:
+          title: Observation Id
+          type: string
+        key:
+          title: Key
+          type: string
+        value:
+          title: Value
+          type: string
+        created_at:
+          title: Created At
+          type: integer
+        created_by:
+          title: Created By
+          type: string
+        modified_at:
+          title: Modified At
+          type: integer
+        modified_by:
+          title: Modified By
+          type: string
+      required:
+      - observation_id
+      - key
+      - value
+      - created_at
+      - created_by
+      - modified_at
+      - modified_by
+      title: AdAttribute
+      type: object
     AdTag:
+      properties:
+        observation_id:
+          title: Observation Id
+          type: string
+        tag_id:
+          title: Tag Id
+          type: string
+      required:
+      - observation_id
+      - tag_id
+      title: AdTag
+      type: object
+    BaseCell:
+      properties:
+        config:
+          anyOf:
+          - type: object
+          - type: 'null'
+          default: null
+          title: Config
+      title: BaseCell
+      type: object
+    LegacyAdTag:
       properties:
         id:
           title: Id
@@ -2462,17 +2903,45 @@ components:
       required:
       - id
       - tags
-      title: AdTag
+      title: LegacyAdTag
       type: object
-    BaseCell:
+    Observation:
       properties:
-        config:
-          anyOf:
-          - type: object
-          - type: 'null'
-          default: null
-          title: Config
-      title: BaseCell
+        observer_id:
+          title: Observer Id
+          type: string
+        observation_id:
+          title: Observation Id
+          type: string
+        timestamp:
+          title: Timestamp
+          type: integer
+      required:
+      - observer_id
+      - observation_id
+      - timestamp
+      title: Observation
+      type: object
+    OpenSearchIndex:
+      properties:
+        id:
+          title: Id
+          type: string
+        name:
+          title: Name
+          type: string
+        created_at:
+          title: Created At
+          type: integer
+        status:
+          title: Status
+          type: string
+      required:
+      - id
+      - name
+      - created_at
+      - status
+      title: OpenSearchIndex
       type: object
     Project:
       properties:
@@ -2637,5 +3106,61 @@ components:
       - type
       - content
       title: TextCell
+      type: object
+    User:
+      properties:
+        id:
+          title: Id
+          type: string
+        full_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+          title: Full Name
+        enabled:
+          default: true
+          title: Enabled
+          type: boolean
+        role:
+          default: user
+          title: Role
+          type: string
+        primary_email:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+          title: Primary Email
+      required:
+      - id
+      title: User
+      type: object
+    UserIdentity:
+      properties:
+        user_id:
+          title: User Id
+          type: string
+        provider:
+          title: Provider
+          type: string
+        provider_user_id:
+          title: Provider User Id
+          type: string
+        password:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+          title: Password
+        created_at:
+          title: Created At
+          type: integer
+      required:
+      - user_id
+      - provider
+      - provider_user_id
+      - created_at
+      title: UserIdentity
       type: object
   
