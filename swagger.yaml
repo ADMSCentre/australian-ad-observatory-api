@@ -1271,7 +1271,7 @@ paths:
                     type: string
                     example: OBSERVER_NOT_PROVIDED_IN_PATH
         404:
-          description: No cache found for observer
+          description: No observations found for observer
           content:
             application/json:
               schema:
@@ -1282,7 +1282,7 @@ paths:
                     example: false
                   comment:
                     type: string
-                    example: NO_CACHE_FOUND_FOR_OBSERVER
+                    example: NO_OBSERVATIONS_FOUND_FOR_OBSERVER
   /ads/batch:
     post:
       summary: Retrieve metadata associated with a batch of ads.
