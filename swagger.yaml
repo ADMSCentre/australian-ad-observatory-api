@@ -1530,6 +1530,96 @@ paths:
                     example: PATH_NOT_PROVIDED
       security:
       - bearerAuth: []
+  /ads/hidden:
+    get:
+      summary: Retrieve the list of hidden ads. [allows - admin]
+      description: 'Retrieve the list of ads that are marked as hidden by users.
+      
+      
+        This endpoint requires the authenticated user to have one of the following roles:
+        **admin**.'
+      
+      tags:
+      - ads
+      parameters:
+      - in: query
+        name: page
+        schema:
+          type: integer
+        required: false
+        description: The page number to retrieve (default is 1)
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        required: false
+        description: The number of items per page (default is 1000)
+      - in: query
+        name: include
+        schema:
+          type: string
+        required: false
+        description: Filter hidden ads by ignored status (default is 'all')
+      responses:
+        200:
+          description: A successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  hidden_ads:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        observer_id:
+                          type: string
+                        timestamp:
+                          type: number
+                        observation_id:
+                          type: string
+                        hidden_at:
+                          type: number
+                        hidden_by:
+                          type: object
+                          properties:
+                            user_id:
+                              type: string
+                            fullname:
+                              type: string
+                        ignored:
+                          type: boolean
+                  pagination:
+                    type: object
+                    properties:
+                      total_records:
+                        type: integer
+                      current_page:
+                        type: integer
+                      total_pages:
+                        type: integer
+                      limit:
+                        type: integer
+        500:
+          description: A failed response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  comment:
+                    type: string
+                    example: FAILED_TO_QUERY_HIDDEN_ADS
+                  error:
+                    type: string
+      security:
+      - bearerAuth: []
   /ads:
     get:
       summary: Retrieve the ads stream index as a presigned URL and the ads that passed RDO construction.
@@ -2060,6 +2150,77 @@ paths:
                   comment:
                     type: string
                     example: INVALID_QUERY
+      security:
+      - bearerAuth: []
+  /ads/{observer_id}/{timestamp}.{ad_id}:
+    delete:
+      summary: Delete a specific ad. [allows - admin]
+      description: 'Delete the specified ad and all associated metadata.
+      
+      
+        This endpoint requires the authenticated user to have one of the following roles:
+        **admin**.'
+      
+      parameters:
+      - name: observer_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: timestamp
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: ad_id
+        in: path
+        required: true
+        schema:
+          type: string
+      tags:
+      - ads
+      responses:
+        200:
+          description: A successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  comment:
+                    type: string
+                    example: Ad deleted successfully
+        400:
+          description: A failed response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  comment:
+                    type: string
+                    example: 'MISSING_PARAMETERS: observer_id, timestamp, ad_id'
+        500:
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  comment:
+                    type: string
+                    example: FAILED_TO_DELETE_AD
+                  error:
+                    type: string
       security:
       - bearerAuth: []
   /observers:
