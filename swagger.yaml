@@ -1318,6 +1318,7 @@ paths:
                     - attributes
                     - tags
                     - rdo
+                    - classification
       responses:
         200:
           description: A successful response
@@ -1390,6 +1391,7 @@ paths:
                     - attributes
                     - tags
                     - rdo
+                    - classification
       responses:
         200:
           description: A successful response
@@ -2220,6 +2222,75 @@ paths:
                     type: string
                     example: FAILED_TO_DELETE_AD
                   error:
+                    type: string
+      security:
+      - bearerAuth: []
+  /ads/{observer_id}/{timestamp}.{ad_id}/enrichment/classifications:
+    get:
+      summary: Retrieve both automatic and manual classifications for an ad.
+      description: 'Returns automatic classifications from CLIP model and manual classifications
+      
+        from user-applied tags.'
+      
+      parameters:
+      - name: observer_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: timestamp
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: ad_id
+        in: path
+        required: true
+        schema:
+          type: string
+      tags:
+      - ads/enrichment
+      responses:
+        200:
+          description: A successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  classifications:
+                    type: object
+                    properties:
+                      automatic:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            label:
+                              type: string
+                            score:
+                              type: number
+                      manual:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            label:
+                              type: string
+        400:
+          description: A failed response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  comment:
                     type: string
       security:
       - bearerAuth: []
@@ -3095,6 +3166,54 @@ components:
           default: null
           title: Config
       title: BaseCell
+      type: object
+    ClipClassification:
+      description: Pydantic model for ad clip classification data.
+      properties:
+        id:
+          title: Id
+          type: string
+        observation_id:
+          title: Observation Id
+          type: string
+        label:
+          title: Label
+          type: string
+        score:
+          title: Score
+          type: number
+        created_at:
+          title: Created At
+          type: integer
+        updated_at:
+          title: Updated At
+          type: integer
+      required:
+      - id
+      - observation_id
+      - label
+      - score
+      - created_at
+      - updated_at
+      title: ClipClassification
+      type: object
+    CompositeClassification:
+      description: Pydantic model for parsing S3 JSON composite classification data.
+      properties:
+        ranking:
+          title: Ranking
+          type: integer
+        label:
+          title: Label
+          type: string
+        score_normalized:
+          title: Score Normalized
+          type: number
+      required:
+      - ranking
+      - label
+      - score_normalized
+      title: CompositeClassification
       type: object
     LegacyAdTag:
       properties:
