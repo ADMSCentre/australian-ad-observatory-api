@@ -1318,7 +1318,7 @@ paths:
                     - attributes
                     - tags
                     - rdo
-                    - classification
+                    - classifications
       responses:
         200:
           description: A successful response
@@ -1391,7 +1391,7 @@ paths:
                     - attributes
                     - tags
                     - rdo
-                    - classification
+                    - classifications
       responses:
         200:
           description: A successful response
