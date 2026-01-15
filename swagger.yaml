@@ -3031,6 +3031,260 @@ paths:
                     example: UNAUTHORISED
       security:
       - bearerAuth: []
+  /exports/fields:
+    get:
+      summary: List all available exportable fields.
+      description: Returns a list of fields that users can select to include in their exports.
+      
+      tags:
+      - exports
+      responses:
+        200:
+          description: List of exportable fields
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    name:
+                      type: string
+                    description:
+                      type: string
+                    path:
+                      type: string
+                    is_default:
+                      type: boolean
+      security:
+      - bearerAuth: []
+  /exports:
+    post:
+      summary: Create a new export job.
+      description: 'Initiates an asynchronous export job that will be processed by a background
+        worker.
+      
+        The export job will be queued and the user can monitor its status.'
+      
+      tags:
+      - exports
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                export_parameters:
+                  type: object
+                  properties:
+                    query:
+                      type: object
+                      description: Query to filter the data to export
+                    include_images:
+                      type: boolean
+                      default: false
+                    fields:
+                      type: array
+                      items:
+                        type: string
+                      description: List of field paths to include in the export
+      responses:
+        201:
+          description: Export job created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  export:
+                    type: object
+        400:
+          description: Bad request
+        500:
+          description: Failed to queue export job
+      security:
+      - bearerAuth: []
+    get:
+      summary: List all exports for a user.
+      description: Returns exports created by the user or shared with them.
+      
+      tags:
+      - exports
+      parameters:
+      - name: user_id
+        in: query
+        schema:
+          type: string
+        description: Optional user ID to filter exports. If not provided, returns exports
+          for the authenticated user.
+      responses:
+        200:
+          description: List of export jobs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+      security:
+      - bearerAuth: []
+  /exports/{export_id}:
+    get:
+      summary: Get a specific export job by ID.
+      description: Returns detailed information about an export job including status, parameters,
+        and download URL.
+      
+      parameters:
+      - name: export_id
+        in: path
+        required: true
+        schema:
+          type: string
+      tags:
+      - exports
+      responses:
+        200:
+          description: Export job details
+          content:
+            application/json:
+              schema:
+                type: object
+        403:
+          description: Unauthorized access
+        404:
+          description: Export not found
+      security:
+      - bearerAuth: []
+    delete:
+      summary: Delete an export job.
+      description: Deletes the export job and its associated files. Only the creator or
+        admin can delete an export.
+      
+      parameters:
+      - name: export_id
+        in: path
+        required: true
+        schema:
+          type: string
+      tags:
+      - exports
+      responses:
+        200:
+          description: Export deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        403:
+          description: Unauthorized access
+        404:
+          description: Export not found
+      security:
+      - bearerAuth: []
+  /exports/{export_id}/share:
+    post:
+      summary: Share an export with other users.
+      description: Adds users to the export's access list. Only the creator or admin can
+        share.
+      
+      parameters:
+      - name: export_id
+        in: path
+        required: true
+        schema:
+          type: string
+      tags:
+      - exports
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user_ids:
+                  type: array
+                  items:
+                    type: string
+                  description: List of user IDs to share with
+      responses:
+        200:
+          description: Export shared successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  shared_with:
+                    type: array
+                    items:
+                      type: string
+        400:
+          description: Bad request
+        403:
+          description: Unauthorized access
+        404:
+          description: Export not found
+      security:
+      - bearerAuth: []
+  /exports/{export_id}/unshare:
+    post:
+      summary: Remove users from an export's access list.
+      description: Removes users from the export's shared access. Only the creator or admin
+        can unshare.
+      
+      parameters:
+      - name: export_id
+        in: path
+        required: true
+        schema:
+          type: string
+      tags:
+      - exports
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user_ids:
+                  type: array
+                  items:
+                    type: string
+                  description: List of user IDs to remove from access
+      responses:
+        200:
+          description: Users removed from export successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  shared_with:
+                    type: array
+                    items:
+                      type: string
+        400:
+          description: Bad request
+        403:
+          description: Unauthorized access
+        404:
+          description: Export not found
+      security:
+      - bearerAuth: []
   /reflect:
     post:
       summary: Reflect the event back to the client.
@@ -3215,6 +3469,116 @@ components:
       - score_normalized
       title: CompositeClassification
       type: object
+    Export:
+      description: Pydantic model for Export API responses.
+      properties:
+        id:
+          title: Id
+          type: string
+        creator_id:
+          title: Creator Id
+          type: string
+        include_images:
+          default: false
+          title: Include Images
+          type: boolean
+        query_string:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+          title: Query String
+        status:
+          default: pending
+          title: Status
+          type: string
+        object_location:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+          title: Object Location
+        created_at:
+          anyOf:
+          - format: date-time
+            type: string
+          - type: 'null'
+          default: null
+          title: Created At
+        updated_at:
+          anyOf:
+          - format: date-time
+            type: string
+          - type: 'null'
+          default: null
+          title: Updated At
+        started_at:
+          anyOf:
+          - format: date-time
+            type: string
+          - type: 'null'
+          default: null
+          title: Started At
+        completed_at:
+          anyOf:
+          - format: date-time
+            type: string
+          - type: 'null'
+          default: null
+          title: Completed At
+        message:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+          title: Message
+      required:
+      - id
+      - creator_id
+      title: Export
+      type: object
+    ExportField:
+      description: Pydantic model for ExportField API responses.
+      properties:
+        export_id:
+          title: Export Id
+          type: string
+        field_id:
+          title: Field Id
+          type: string
+      required:
+      - export_id
+      - field_id
+      title: ExportField
+      type: object
+    ExportableField:
+      description: Pydantic model for ExportableField API responses.
+      properties:
+        id:
+          title: Id
+          type: string
+        name:
+          title: Name
+          type: string
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+          title: Description
+        path:
+          title: Path
+          type: string
+        is_default:
+          default: false
+          title: Is Default
+          type: boolean
+      required:
+      - id
+      - name
+      - path
+      title: ExportableField
+      type: object
     LegacyAdTag:
       properties:
         id:
@@ -3374,6 +3738,20 @@ components:
       - id
       - type
       title: QueryResult
+      type: object
+    SharedExport:
+      description: Pydantic model for SharedExport API responses.
+      properties:
+        export_id:
+          title: Export Id
+          type: string
+        user_id:
+          title: User Id
+          type: string
+      required:
+      - export_id
+      - user_id
+      title: SharedExport
       type: object
     Tag:
       properties:
