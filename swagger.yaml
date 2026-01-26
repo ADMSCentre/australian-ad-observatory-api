@@ -3077,20 +3077,14 @@ paths:
             schema:
               type: object
               properties:
-                export_parameters:
-                  type: object
-                  properties:
-                    query:
-                      type: object
-                      description: Query to filter the data to export
-                    include_images:
-                      type: boolean
-                      default: false
-                    fields:
-                      type: array
-                      items:
-                        type: string
-                      description: List of field paths to include in the export
+                query: null
+                type: array
+                description: List of field paths to include in the export
+                include_images: null
+                default: false
+                fields: null
+                items:
+                  type: string
       responses:
         201:
           description: Export job created successfully
