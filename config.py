@@ -1,33 +1,80 @@
-from dataclasses import dataclass
-import configparser
+"""Configuration module using environment variables.
+
+All configuration is loaded from environment variables. Use a .env file for local development.
+The module automatically loads environment variables from a .env file if present.
+"""
 import os
-from dotenv import load_dotenv
+import warnings
+from dataclasses import dataclass
+from typing import Optional
+
+# Load .env file if present
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
+
+# Track missing environment variables
+_missing_required_vars = []
+_missing_optional_vars = []
+
+
+def get_env(key: str, default: str = '', required: bool = False) -> str:
+    """Get environment variable with optional default and required validation.
+    
+    Args:
+        key: Environment variable name
+        default: Default value if not set
+        required: If True, raises error if not set. If False, logs warning.
+        
+    Returns:
+        Environment variable value or default
+        
+    Raises:
+        ValueError: If required and not set
+    """
+    value = os.getenv(key, default)
+    
+    if not value:
+        if required:
+            _missing_required_vars.append(key)
+        elif default == '' and not required:
+            # Only track optional vars that don't have defaults
+            _missing_optional_vars.append(key)
+    
+    return value
+
+
+def get_env_int(key: str, default: int = 0) -> int:
+    """Get environment variable as integer.
+    
+    Args:
+        key: Environment variable name
+        default: Default value if not set
+        
+    Returns:
+        Environment variable as integer or default
+    """
+    value = os.getenv(key)
+    if value is None:
+        return default
+    return int(value)
+
 
 @dataclass
 class AwsConfig:
     access_key_id: str
     secret_access_key: str
     region: str
-    
-@dataclass
-class DeploymentConfig:
-    lambda_function_name: str
-    zip_file: str
-    deployment_bucket: str
-    
-@dataclass
-class JwtConfig:
-    secret: str
-    expiration: int
 
-@dataclass
-class ApiKeyConfig:
-    salt: str
-    
+
 @dataclass
 class OpenSearchConfig:
     endpoint: str
-    
+
+
 @dataclass
 class PostgresConfig:
     host: str
@@ -36,118 +83,96 @@ class PostgresConfig:
     username: str
     password: str
     
-@dataclass
-class CilogonConfig:
-    client_id: str
-    client_secret: str
-    metadata_url: str
-    redirect_uri: str
-    
-@dataclass
-class AppConfig:
-    state_cookie_secret: str
-    salt: str
-    frontend_url: str
+    @property
+    def url(self) -> str:
+        """Generate database URL from config."""
+        return f'postgresql://{self.username}:{self.password}@{self.host}:{self.port}/{self.database}'
 
-@dataclass
-class ExternalApiConfig:
-    ad_delete_lambda_key: str
-    
+
 @dataclass
 class BucketsConfig:
     observations: str
     metadata: str
-    
-@dataclass
-class TestConfig:
-    username: str
-    password: str
-    
+
+
 @dataclass
 class Config:
     aws: AwsConfig
-    deployment: DeploymentConfig
-    jwt: JwtConfig
-    api_key: ApiKeyConfig
     open_search: OpenSearchConfig
     postgres: PostgresConfig
-    cilogon: CilogonConfig
-    app: AppConfig
-    external_api: ExternalApiConfig
     buckets: BucketsConfig
-    test: TestConfig
 
-def _create_config(config) -> Config:
-    return Config(
+
+def _validate_config() -> None:
+    """Validate configuration and emit warnings/errors for missing variables.
+    
+    Raises:
+        ValueError: If critical environment variables are missing
+    """
+    # Define critical variables that must be set for production use
+    critical_vars = {
+        'AWS_ACCESS_KEY_ID': 'AWS credentials for S3 access',
+        'AWS_SECRET_ACCESS_KEY': 'AWS credentials for S3 access',
+        'OPENSEARCH_ENDPOINT': 'OpenSearch cluster connection',
+        'POSTGRES_PASSWORD': 'PostgreSQL database authentication',
+    }
+    
+    missing_critical = []
+    for var, purpose in critical_vars.items():
+        if var in _missing_optional_vars:
+            missing_critical.append(f"{var} ({purpose})")
+    
+    if missing_critical:
+        error_msg = (
+            "Missing critical environment variables required for operation:\n  - " +
+            "\n  - ".join(missing_critical) +
+            "\n\nPlease set these variables in your .env file before running scripts."
+        )
+        raise ValueError(error_msg)
+    
+    if _missing_optional_vars:
+        warning_msg = (
+            "Missing optional environment variables (using defaults):\n  - " +
+            "\n  - ".join(_missing_optional_vars)
+        )
+        warnings.warn(warning_msg, category=UserWarning, stacklevel=3)
+
+
+def load_config() -> Config:
+    """Load configuration from environment variables.
+    
+    Emits warnings for missing optional variables and raises errors for missing critical ones.
+    
+    Raises:
+        ValueError: If critical environment variables are missing
+    """
+    config = Config(
         aws=AwsConfig(
-            access_key_id=config['AWS']['ACCESS_KEY_ID'],
-            secret_access_key=config['AWS']['SECRET_ACCESS_KEY'],
-            region=config['AWS']['REGION']
-        ),
-        deployment=DeploymentConfig(
-            lambda_function_name=config['DEPLOYMENT']['LAMBDA_FUNCTION_NAME'],
-            zip_file=config['DEPLOYMENT']['ZIP_FILE'],
-            deployment_bucket=config['DEPLOYMENT']['DEPLOYMENT_BUCKET']
-        ),
-        jwt=JwtConfig(
-            secret=config['JWT']['SECRET'],
-            expiration=int(config['JWT']['EXPIRATION'])
-        ),
-        api_key=ApiKeyConfig(
-            salt=config['API_KEY']['SALT']
+            access_key_id=get_env('AWS_ACCESS_KEY_ID'),
+            secret_access_key=get_env('AWS_SECRET_ACCESS_KEY'),
+            region=get_env('AWS_REGION', 'ap-southeast-2')
         ),
         open_search=OpenSearchConfig(
-            endpoint=config['OPEN_SEARCH']['ENDPOINT']
+            endpoint=get_env('OPENSEARCH_ENDPOINT')
         ),
         postgres=PostgresConfig(
-            host=config['POSTGRES']['HOST'],
-            port=int(config['POSTGRES']['PORT']),
-            database=config['POSTGRES']['DATABASE'],
-            username=config['POSTGRES']['USERNAME'],
-            password=config['POSTGRES']['PASSWORD']
-        ),
-        cilogon=CilogonConfig(
-            client_id=config['CILOGON']['CLIENT_ID'],
-            client_secret=config['CILOGON']['CLIENT_SECRET'],
-            metadata_url=config['CILOGON']['METADATA_URL'],
-            redirect_uri=config['CILOGON']['REDIRECT_URI']
-        ),
-        app=AppConfig(
-            state_cookie_secret=config['APP']['STATE_COOKIE_SECRET'],
-            salt=config['APP']['SALT'],
-            frontend_url=config['APP']['FRONTEND_URL']
-        ),
-        external_api=ExternalApiConfig(
-            ad_delete_lambda_key=config['EXTERNAL_API']['AD_DELETE_LAMBDA_KEY']
+            host=get_env('POSTGRES_HOST', 'localhost'),
+            port=get_env_int('POSTGRES_PORT', 5432),
+            database=get_env('POSTGRES_DATABASE', 'aao'),
+            username=get_env('POSTGRES_USERNAME', 'postgres'),
+            password=get_env('POSTGRES_PASSWORD')
         ),
         buckets=BucketsConfig(
-            observations=config['BUCKETS']['OBSERVATIONS'],
-            metadata=config['BUCKETS']['METADATA']
-        ),
-        test=TestConfig(
-            username=config['TEST']['USERNAME'],
-            password=config['TEST']['PASSWORD']
+            observations=get_env('S3_OBSERVATIONS_BUCKET', 'fta-mobile-observations-v2'),
+            metadata=get_env('S3_METADATA_BUCKET')
         )
     )
-
-def _load_from_file(target = 'config.ini') -> Config:
-    _config = configparser.ConfigParser()
-    _config.read(target)
     
-    return _create_config(_config)
-
-def from_string(str: str) -> Config:
-    _config = configparser.ConfigParser()
-    _config.read_string(str)
+    # Validate configuration
+    _validate_config()
     
-    return _create_config(_config)
+    return config
 
-import os
 
-load_dotenv(verbose=True)
-print("Loading configuration for environment:", os.getenv('ENV', 'unknown'))
-
-if os.getenv('ENV') == 'documentation':
-    config = _load_from_file('sample_config.ini')
-else:
-    config = _load_from_file('config.ini')
+# Load config on module import
+config = load_config()

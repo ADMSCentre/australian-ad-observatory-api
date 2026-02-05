@@ -5,30 +5,25 @@ ETL script for processing clip classification data from S3 and storing it in RDS
 This script reads clip classification JSON files from the S3 bucket 
 (fta-mobile-observations-v2/{observer_uuid}/clip_classifications/{observation_uuid}.json)
 and stores the composite classification data in the ad_classifications RDS table.
+
+This module uses DELETE+INSERT for idempotency - existing classifications for an
+observation are deleted before inserting new ones, ensuring consistent state.
 """
 
-import json
 import time
 from multiprocessing import Pool, cpu_count
 from typing import List, Optional, Tuple
 from uuid import uuid4
+
 from tqdm import tqdm
 
-from config import config
-from db.clients.rds_storage_client import RdsStorageClient
-from models.clip_classification import ClipClassification, ClipClassificationORM, CompositeClassification
+from db.database import get_session
+from models.clip_classification import ClipClassificationORM, CompositeClassification
 from models.observation import ObservationORM
 import utils.observations_sub_bucket as observations_sub_bucket
 
 # Default number of worker processes
 DEFAULT_WORKERS = min(8, cpu_count())
-
-
-def get_rds_client() -> RdsStorageClient:
-    """Create and connect an RDS storage client for clip classifications."""
-    client = RdsStorageClient(base_orm=ClipClassificationORM)
-    client.connect()
-    return client
 
 
 def read_clip_classification_from_s3(observer_id: str, observation_id: str) -> Optional[dict]:
@@ -71,7 +66,6 @@ def parse_composite_classifications(data: dict) -> List[CompositeClassification]
 def store_classifications(
     observation_id: str, 
     classifications: List[CompositeClassification],
-    rds_client: RdsStorageClient,
     current_time: int
 ) -> int:
     """Store clip classifications in RDS.
@@ -79,7 +73,6 @@ def store_classifications(
     Args:
         observation_id: The observation UUID
         classifications: List of CompositeClassification objects
-        rds_client: The RDS storage client
         current_time: Current timestamp for created_at/updated_at
         
     Returns:
@@ -98,28 +91,25 @@ def store_classifications(
         )
         classification_orms.append(orm)
     
-    with rds_client.session_maker() as session:
+    with get_session() as session:
         session.add_all(classification_orms)
-        session.commit()
     
     return len(classification_orms)
 
 
-def delete_existing_classifications(observation_id: str, rds_client: RdsStorageClient) -> int:
+def delete_existing_classifications(observation_id: str) -> int:
     """Delete existing classifications for an observation.
     
     Args:
         observation_id: The observation UUID
-        rds_client: The RDS storage client
         
     Returns:
         Number of classifications deleted
     """
-    with rds_client.session_maker() as session:
+    with get_session() as session:
         deleted = session.query(ClipClassificationORM).filter_by(
             observation_id=observation_id
         ).delete()
-        session.commit()
         return deleted
 
 
@@ -127,7 +117,7 @@ def _process_observation_worker(args: Tuple[str, str]) -> Tuple[bool, int]:
     """Worker function for multiprocessing to process a single observation.
     
     This function is designed to be called by a multiprocessing Pool.
-    Each worker creates its own database connection.
+    Each worker uses the shared database connection pool.
     
     Args:
         args: Tuple of (observer_id, observation_id)
@@ -138,31 +128,24 @@ def _process_observation_worker(args: Tuple[str, str]) -> Tuple[bool, int]:
     observer_id, observation_id = args
     
     try:
-        # Each worker gets its own RDS client
-        rds_client = get_rds_client()
+        # Read classification data from S3
+        data = read_clip_classification_from_s3(observer_id, observation_id)
+        if not data:
+            return (False, 0)
         
-        try:
-            # Read classification data from S3
-            data = read_clip_classification_from_s3(observer_id, observation_id)
-            if not data:
-                return (False, 0)
-            
-            # Parse the composite classifications
-            classifications = parse_composite_classifications(data)
-            if not classifications:
-                return (False, 0)
-            
-            # Delete existing classifications for this observation (for idempotency)
-            delete_existing_classifications(observation_id, rds_client)
-            
-            # Store the new classifications
-            current_time = int(time.time() * 1000)
-            count = store_classifications(observation_id, classifications, rds_client, current_time)
-            
-            return (True, count)
-            
-        finally:
-            rds_client.disconnect()
+        # Parse the composite classifications
+        classifications = parse_composite_classifications(data)
+        if not classifications:
+            return (False, 0)
+        
+        # Delete existing classifications for this observation (for idempotency)
+        delete_existing_classifications(observation_id)
+        
+        # Store the new classifications
+        current_time = int(time.time() * 1000)
+        count = store_classifications(observation_id, classifications, current_time)
+        
+        return (True, count)
             
     except Exception as e:
         # Silently handle errors in workers, they'll be counted as failures
@@ -175,6 +158,9 @@ def process_single_ad(observer_id: str, timestamp: str, observation_id: str) -> 
     This will allow for processing of individual observations as needed 
     (e.g., backfilling missing data, or processing new observations as they come in).
     
+    Uses DELETE+INSERT for idempotency - existing classifications are deleted
+    before inserting new ones.
+    
     Args:
         observer_id: The observer UUID
         timestamp: The observation timestamp (unused, kept for interface consistency)
@@ -183,8 +169,6 @@ def process_single_ad(observer_id: str, timestamp: str, observation_id: str) -> 
     Returns:
         True if classification was processed successfully, False otherwise
     """
-    rds_client = get_rds_client()
-    
     try:
         # Read classification data from S3
         data = read_clip_classification_from_s3(observer_id, observation_id)
@@ -199,11 +183,11 @@ def process_single_ad(observer_id: str, timestamp: str, observation_id: str) -> 
             return False
         
         # Delete existing classifications for this observation (for idempotency)
-        delete_existing_classifications(observation_id, rds_client)
+        delete_existing_classifications(observation_id)
         
         # Store the new classifications
         current_time = int(time.time() * 1000)  # Milliseconds since epoch
-        count = store_classifications(observation_id, classifications, rds_client, current_time)
+        count = store_classifications(observation_id, classifications, current_time)
         
         print(f"Stored {count} classifications for observation {observation_id}")
         return True
@@ -211,8 +195,6 @@ def process_single_ad(observer_id: str, timestamp: str, observation_id: str) -> 
     except Exception as e:
         print(f"Error processing {observer_id}/{observation_id}: {e}")
         return False
-    finally:
-        rds_client.disconnect()
 
 
 def list_observations_from_rds() -> List[tuple]:
@@ -221,15 +203,9 @@ def list_observations_from_rds() -> List[tuple]:
     Returns:
         List of tuples (observer_id, observation_id)
     """
-    client = RdsStorageClient(base_orm=ObservationORM)
-    client.connect()
-    
-    try:
-        with client.session_maker() as session:
-            observations = session.query(ObservationORM).all()
-            return [(obs.observer_id, obs.observation_id) for obs in observations]
-    finally:
-        client.disconnect()
+    with get_session() as session:
+        observations = session.query(ObservationORM).all()
+        return [(obs.observer_id, obs.observation_id) for obs in observations]
 
 
 def list_clip_classification_files_for_observer(observer_id: str) -> List[str]:
@@ -283,6 +259,9 @@ def process_all_ads(clear_existing: bool = False, num_workers: int = DEFAULT_WOR
     This should be run to import all existing clip classifications into RDS.
     Uses a process pool to parallelize processing of observations.
     
+    Uses DELETE+INSERT for idempotency - existing classifications for each
+    observation are deleted before inserting new ones.
+    
     Args:
         clear_existing: If True, clear all existing classifications before processing
         num_workers: Number of worker processes to use (default: min(8, cpu_count))
@@ -300,14 +279,9 @@ def process_all_ads(clear_existing: bool = False, num_workers: int = DEFAULT_WOR
     # Optionally clear existing classifications
     if clear_existing:
         print("Clearing existing classifications...")
-        rds_client = get_rds_client()
-        try:
-            with rds_client.session_maker() as session:
-                deleted = session.query(ClipClassificationORM).delete()
-                session.commit()
-                print(f"Deleted {deleted} existing classifications")
-        finally:
-            rds_client.disconnect()
+        with get_session() as session:
+            deleted = session.query(ClipClassificationORM).delete()
+            print(f"Deleted {deleted} existing classifications")
     
     # Get all observers
     print("Listing all observers from S3...")
@@ -360,6 +334,9 @@ def process_all_ads(clear_existing: bool = False, num_workers: int = DEFAULT_WOR
 
 def process_observer_parallel(observer_id: str, num_workers: int = DEFAULT_WORKERS) -> dict:
     """Process all observations for a specific observer using multiprocessing.
+    
+    Uses DELETE+INSERT for idempotency - existing classifications for each
+    observation are deleted before inserting new ones.
     
     Args:
         observer_id: The observer UUID
