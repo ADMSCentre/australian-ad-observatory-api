@@ -1,9 +1,16 @@
-from pydantic import BaseModel
+"""Observation ORM model for storing indexed ad records."""
+
 from sqlalchemy import BigInteger, String
 from sqlalchemy.orm import Mapped, mapped_column
 from .base import Base
 
+
 class ObservationORM(Base):
+    """ORM model for indexed observations (ads).
+    
+    Each row represents an ad that has been processed by the RDO pipeline
+    and indexed for querying.
+    """
     __tablename__ = 'observations'
     
     observation_id: Mapped[str] = mapped_column(
@@ -14,14 +21,13 @@ class ObservationORM(Base):
     )
     observer_id: Mapped[str] = mapped_column(
         String(36),
-        nullable=False
+        nullable=False,
+        index=True
     )
     timestamp: Mapped[int] = mapped_column(
         BigInteger,
         nullable=False
     )
 
-class Observation(BaseModel):
-    observer_id: str
-    observation_id: str
-    timestamp: int
+    def __repr__(self):
+        return f"<Observation(observation_id={self.observation_id}, observer_id={self.observer_id}, timestamp={self.timestamp})>"

@@ -1,270 +1,266 @@
-# Australian Ad Observatory API
+# AAO Ingestion Service
 
-This is the codebase for the Australian Ad Observatory API, which is a Mono-Lambda serverless application that provides an API for the [Australian Ad Observatory dashboard](https://github.com/ADMSCentre/australian-ad-observatory-dashboard-v2).
+A standalone Python service for handling data ingestion in the Australian Ad Observatory pipeline. This service processes S3 data for clip classifications and RDO (Rich Data Object) outputs, indexing them to both PostgreSQL (RDS) and OpenSearch using backfill scripts.
 
-This also hosts the [documentation](https://admscentre.github.io/australian-ad-observatory-api) of the Australian Ad Observatory API.
+## Features
 
-## Dependencies
+- **Data Processing**: Processes S3 files for clip classifications and RDO outputs
+  - Clip classification files (`{observer_id}/clip_classifications/{observation_id}.json`)
+  - RDO output files (`{observer_id}/rdo/{timestamp}.{observation_id}/output.json`)
+- **Dual Indexing**: Indexes observations to both RDS and OpenSearch
+- **Backfill Scripts**: Tools for processing historical data
+- **Index Management**: Registry for tracking OpenSearch index versions
 
-- Docker
+## Usage
 
-> [!TIP]
->
-> For Linux, install Docker using the following command (preferably from `~`):
->
-> Update the package database:
->
-> ```bash
-> # Add Docker's official GPG key:
-> sudo apt-get update
-> sudo apt-get install ca-certificates curl
-> sudo install -m 0755 -d /etc/apt/keyrings
-> sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
-> sudo chmod a+r /etc/apt/keyrings/docker.asc
-> 
-> # Add the repository to Apt sources:
-> echo \
->   "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
->   $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}") stable" | \
->   sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-> sudo apt-get update
-> ```
->
-> Install the latest version of Docker:
->
-> ```bash
-> sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-> ```
->
-> Verify the installation:
-> 
-> ```bash
-> docker --version
-> ```
+The **preferred method** to run the ingestion service is using Docker containers for consistent, isolated execution.
 
-## Setup
+### Docker Usage (Recommended)
 
-1. Create a `config.ini` file in the root directory of the project to store the AWS credentials and other settings. An example `sample_config.ini` is provided for reference.
+The service can be run directly from Docker for easy deployment and testing.
 
-2. Use [AWS SAM CLI](https://github.com/aws/aws-sam-cli) to run the API locally.
+#### Prerequisites
 
-    2.1. Install AWS SAM CLI for your OS by following the [installation instructions](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html#install-sam-cli-instructions).
+- Docker installed
+- Access to required AWS resources (S3, OpenSearch, PostgreSQL)
 
-    > [!TIP] 
-    >
-    > For Linux, you can use the following command to install AWS SAM CLI (preferably from `~`):
-    >
-    > ```bash
-    > curl -L https://github.com/aws/aws-sam-cli/releases/latest/download/aws-sam-cli-linux-x86_64.zip -o aws-sam-cli-linux-x86_64.zip
-    > unzip aws-sam-cli-linux-x86_64.zip -d sam-installation
-    > sudo ./sam-installation/install
-    > sam --version
-    > ```
-
-    2.2 Run the following command to build the API:
-
-    ```bash
-    sudo sam build --use-container
-    ```
-
-    2.3 Run the following command to start the API locally:
-
-    ```bash
-    sudo sam local start-api
-    ```
-
-    2.4 The API will be available at `http://localhost:3000/`. To test it is working, try accessing the `/hello` endpoint:
-
-    ```shell
-    curl http://localhost:3000/hello
-    # {"message": "Hello, world!"}
-    ```
-
-    2.5 To watch for changes in the source code and automatically rebuild the API, you can use the following command. You may first need to install `entr` using your package manager (e.g., `brew install entr` for MacOS or `sudo apt-get install entr` for Linux):
-
-    ```bash
-    find . -not -path "./.*" | entr -r sh -c 'sudo sam build --use-container && sudo sam local start-api'
-    ```
-
-3. **Alternatively**, you can run the API locally using Python in a virtual environment.
-
-    3.1 For MacOS and Linux:
-
-    ```bash
-    python3 -m venv .venv
-    source .venv/bin/activate
-    pip install -r requirements.txt
-    ```
-
-    3.2 For Windows:
-
-    ```powershell   
-    python -m venv .venv
-    .\.venv\Scripts\activate
-    pip install -r requirements.txt
-    ```
-
-## Testing
-
-They can be run using the [`pytest`](https://docs.pytest.org/en/stable/) module, which you can install with:
+#### Build the Image
 
 ```bash
-pip install pytest
+docker build -t aao-ingestion-service .
 ```
 
-> [!NOTE]
->
-> This dependency is not included in the `requirements.txt` file as it is only needed for testing purposes and not for the Lambda deployment.
-
-To run the tests, you can use the following command from the root directory of the project:
+#### Run with Environment Variables
 
 ```bash
-python -m pytest test_directory_or_file
+# Set environment variables inline or use --env-file
+docker run --rm --env-file .env -v $(pwd)/logs:/app/logs aao-ingestion-service scripts.index_rdo --new --workers 10
 ```
 
-Where `test_directory_or_file` can be either a specific test file (e.g., `unittests/test_file.py`) or a directory containing tests (e.g., `unittests` or `apitests`).
-
-> [!IMPORTANT]
->
-> We are using the `python -m` command to run `pytest` instead of `pytest` directly to ensure that the correct Python interpreter is used, especially when working with virtual environments.
->
-> Without this, you may encounter issues with the Python version or when importing modules such as `lambda_function`.
-
-### Unit Tests
-
-These tests target the individual components of the API (and not the endpoints). They are located in the `unittests` directory.
-
-To run a specific test file:
+#### Common Examples
 
 ```bash
-python -m pytest unittests/test_file.py
+# RDO backfill to new index
+docker run --rm --env-file .env aao-ingestion-service scripts.index_rdo --new --workers 50
+
+# CLIP classification backfill
+docker run --rm --env-file .env aao-ingestion-service scripts.index_clip --workers 8
+
+# Interactive cleanup (requires -it)
+docker run -it --rm --env-file .env aao-ingestion-service scripts.index_rdo --cleanup
+
+# Dry-run for validation
+docker run --rm --env-file .env aao-ingestion-service scripts.index_rdo --dry-run
 ```
 
-To run all unit tests:
+**Number of Workers** The optimal number of workers typically ranges from 2-4x the number of CPU cores available, depending on memory, network I/O, and system resources. For example, on a 4-core system, try 8-16 workers. Monitor system load and adjust accordingly.
+
+#### Docker Configuration Notes
+
+- **Environment Variables**: Pass via `--env-file .env` or individual `--env` flags
+- **Log Persistence**: Mount `/app/logs` volume to persist logs: `-v $(pwd)/logs:/app/logs`
+- **Interactive Mode**: Use `-it` for interactive commands like `--cleanup`
+- **Resource Limits**: Add `--cpus=2 --memory=2g` for resource constraints in production
+
+### Backfill Scripts (Alternative)
+
+If you prefer to run directly with Python, all backfill scripts are located in the `/scripts` directory.
+
+#### RDO Backfill (Observations + OpenSearch)
+
+Backfill observations to RDS and reduced RDOs to OpenSearch:
 
 ```bash
-python -m pytest unittests
+# Update the latest ready index
+python -m scripts.index_rdo
+
+# Create a new OpenSearch index
+python -m scripts.index_rdo --new
+
+# RDS only (observations table)
+python -m scripts.index_rdo --rds-only
+
+# OpenSearch only
+python -m scripts.index_rdo --opensearch-only
+
+# Specify number of workers and index prefix
+python -m scripts.index_rdo --new --workers 100 --prefix my-index_
+
+# Delete an OpenSearch index (interactive with confirmation)
+python -m scripts.index_rdo --cleanup
 ```
 
-### API Tests
+**Workers Note:** The optimal number of workers typically ranges from 2-4x the number of CPU cores available, depending on memory, network I/O, and system resources. For example, on a 4-core system, try 8-16 workers. Monitor system load and adjust accordingly.
 
-These tests target the API endpoints and are located in the `apitests` directory.
+The `--cleanup` flag provides an interactive interface to:
+- List all available OpenSearch indices with their status
+- Select an index for deletion
+- View the index details before deletion
+- Confirm deletion (requires typing 'yes')
+- Delete the index from both OpenSearch and the RDS registry
 
-> [!IMPORTANT]
->
-> The API tests are integration tests that target many protected endpoints and
-> will require valid authentication credentials to run successfully. you will 
-> need to set up the `config.ini` file with a valid `USERNAME` and `PASSWORD` 
-> of actual accounts to run these tests successfully.
+#### CLIP Classification Backfill
 
-To run a specific test file:
+Backfill clip classifications to RDS. Uses UPSERT logic - updates existing 
+classifications by `observation_id + label`, or inserts new ones. Does NOT 
+delete existing entries.
 
 ```bash
-python -m pytest apitests/test_file.py
+# Process all clip classifications
+python -m scripts.index_clip
+
+# Specify number of workers
+python -m scripts.index_clip --workers 16
+
+**Workers Note:** The optimal number of workers typically ranges from 2-4x the number of CPU cores available, depending on memory, network I/O, and system resources. For example, on a 4-core system, try 8-16 workers. Monitor system load and adjust accordingly.
+
+# Process specific observer
+python -m scripts.index_clip --observer-id <uuid>
+
+# Process specific observation
+python -m scripts.index_clip --observer-id <uuid> --observation-id <uuid>
 ```
 
-To run all API tests:
+#### ETL Module (Programmatic Use)
+
+The ETL module at `utils/etl/clip_classification.py` provides programmatic access for processing clip classifications. It uses DELETE+INSERT for idempotency - existing classifications for an observation are deleted before inserting new ones, ensuring consistent state on reprocessing.
 
 ```bash
-python -m pytest apitests
+# Process all clip classifications (with optional clear)
+python -m utils.etl.clip_classification [--clear] [--workers N]
+
+# Process specific observer
+python -m utils.etl.clip_classification --observer-id <uuid>
+
+# Process specific observation
+python -m utils.etl.clip_classification --observer-id <uuid> --observation-id <uuid>
 ```
 
-## Database Migrations
+## Development
 
-Database migrations are managed using [Alembic](https://alembic.sqlalchemy.org/en/latest/).
+### Architecture
 
-To create a new migration, use the following command:
+```
+S3 Bucket (fta-mobile-observations-v2)
+    │
+    ├── Clip Classifications ──┐
+    │                          │
+    └── RDO Outputs ───────────┼──► Python Scripts
+                                 │        │
+                                 │        ├──► PostgreSQL (observations, ad_classifications)
+                                 │        │
+                                 │        └──► OpenSearch (reduced RDO index)
+```
+
+### Project Structure
+
+```
+.
+├── config.py                 # Environment-based configuration
+├── scripts/
+│   ├── __init__.py
+│   ├── index_rdo.py          # RDO backfill to RDS + OpenSearch
+│   └── index_clip.py         # CLIP classification backfill (upsert)
+├── db/
+│   ├── __init__.py
+│   └── database.py           # SQLAlchemy session management
+├── models/
+│   ├── base.py               # SQLAlchemy Base
+│   ├── observation.py        # Observation ORM model
+│   ├── clip_classification.py# Clip classification ORM model
+│   └── open_search_index.py  # Index registry ORM model
+└── utils/
+    ├── etl/
+    │   └── clip_classification.py  # ETL for clip classifications (delete+insert)
+    ├── indexer/
+    │   ├── indexer.py        # Dual RDS/OpenSearch indexer
+    │   └── registry.py       # Index lifecycle management
+    ├── opensearch/
+    │   └── rdo_open_search.py# OpenSearch client wrapper
+    ├── reduce_rdo/           # RDO transformation logic
+    └── observations_sub_bucket.py  # S3 utilities
+```
+
+### Setup
+
+#### Prerequisites
+
+- Python 3.10+
+- PostgreSQL database
+- OpenSearch cluster
+- AWS credentials with S3 access
+- Access to S3 bucket `fta-mobile-observations-v2`
+
+#### Environment Variables
+
+Create a `.env` file based on `.env.example` in the project root:
 
 ```bash
-alembic revision --autogenerate -m "Migration message"
+# AWS Configuration
+AWS_ACCESS_KEY_ID=your_access_key
+AWS_SECRET_ACCESS_KEY=your_secret_key
+AWS_REGION=ap-southeast-2
+
+# PostgreSQL Configuration
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+POSTGRES_DATABASE=aao
+POSTGRES_USERNAME=postgres
+POSTGRES_PASSWORD=your_password
+
+# OpenSearch Configuration
+OPENSEARCH_ENDPOINT=https://your-opensearch-endpoint
+
+# S3 Buckets
+S3_OBSERVATIONS_BUCKET=fta-mobile-observations-v2
+S3_METADATA_BUCKET=your-metadata-bucket
 ```
 
-To apply the migrations to the database, use the following command:
+**Automatic .env Loading:**
+
+The configuration system automatically loads environment variables from a `.env` file if present in the project root. This happens when any script imports the `config` module.
+
+**Environment Variable Validation:**
+
+The configuration system automatically validates environment variables when loaded:
+
+- **Critical Variables (errors if missing)**: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `OPENSEARCH_ENDPOINT`, `POSTGRES_PASSWORD`
+- **Optional Variables (warnings if missing)**: `S3_METADATA_BUCKET`
+- **Default Values**: Variables like `AWS_REGION`, `POSTGRES_HOST`, `POSTGRES_PORT`, etc. have sensible defaults
+
+When you run any script, you'll see:
+- **Warnings** for optional variables that are not set (uses default values)
+- **Errors** for critical variables that are not set (prevents execution)
+
+Example output when running a script:
+```
+config.py:170: UserWarning: Missing optional environment variables (using defaults):
+  - S3_METADATA_BUCKET
+```
+
+#### Installation
 
 ```bash
-alembic upgrade head
+# Create virtual environment
+python -m venv .venv
+
+# Activate (Windows)
+.\.venv\Scripts\activate
+
+# Activate (Linux/MacOS)
+source .venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
 ```
 
-## Deployment
+### Database Models
 
-To deploy the AWS Lambda function, follow these steps:
+#### Observations Table
+Tracks indexed ads with observer_id, observation_id, and timestamp.
 
-**For Linux and MacOS**
+#### Ad Classifications Table
+Stores clip classification labels and scores for each observation.
 
-```shell
-./scripts/package.sh
-python3 -m scripts.deploy
-python3 -m scripts.pulse
-```
-
-**For Windows**
-
-```shell
-./scripts/package.ps1
-python -m scripts.deploy
-python -m scripts.pulse
-```
-
-**Create the deployment package**:
-   
-From the root directory, run the `package.sh` script to create the deployment package. This script will create a ZIP file containing the code and dependencies.
-
-```powershell
-./scripts/package.sh
-```
-
-**Deploy the package to AWS Lambda**:
-   
-From the root directory, run the `deploy.py` script to upload the deployment package to AWS Lambda. Ensure that your `config.ini` file contains the correct AWS credentials and settings.
-
-```bash
-python -m scripts.deploy
-```
-
-This will update the Lambda function with the new code and dependencies.
-
-**Test the deployment**:
-
-The `pulse.py` script can be used to test the deployment. This script will invoke the `/hello` endpoint of the API and print the response.
-
-```bash
-python -m scripts.pulse
-```
-
-> [!IMPORTANT]
->
-> **Deploying to production**
->
-> First, update the `config.ini` with the production settings, such as the `LAMBDA_FUNCTION_NAME`, `DATABASE`, `REDIRECT_URI`, and `FRONTEND_URL`.
->
-> Then, run the following commands to:
->
-> 1. Perform any necessary database migrations.
-> 2. Package the deployment.
-> 3. Deploy the package to AWS Lambda.
-> 
-> ```bash
-> alembic upgrade head
-> ./scripts/package.sh
-> python -m scripts.deploy prod
-> ```
-
-## Generate the API documentation
-
-To generate the API documentation locally, you will need to run the following command in the root directory of the project:
-
-```bash
-python -m scripts.docgen
-```
-
-This will create a `swagger.yaml` OpenAPI Spec file in the root directory of the project, which describes the API and is compatible with Swagger UI.
-
-> [!NOTE]
->
-> You can use the [Swagger Editor](https://editor.swagger.io/) to and test the generated `swagger.yaml` file.
->
-> A [Swagger UI Action](https://github.com/marketplace/actions/swagger-ui-action) workflow is used to deploy the API documentation to GitHub Pages automatically when a push is made to the `main` branch.
-
-# Framework
-
-A custom framework is used to build the API, which relies on decorators to mark functions as API endpoints. Read more about the [Framework](docs/framework.md).
+#### Open Search Indices Table
+Registry of OpenSearch index versions with status tracking (created, in_progress, ready, failed).

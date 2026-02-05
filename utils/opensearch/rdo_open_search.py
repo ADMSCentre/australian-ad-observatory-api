@@ -67,7 +67,8 @@ class AdWithRDO:
         return self.rdo_content
 
 try:
-    LATEST_READY_INDEX = IndexRegistry().get_latest(status='ready').name
+    latest_index = IndexRegistry().get_latest(status='ready')
+    LATEST_READY_INDEX = latest_index.name if latest_index else None
 except Exception as e:
     print(f"Error getting latest ready index: {e}")
     LATEST_READY_INDEX = None

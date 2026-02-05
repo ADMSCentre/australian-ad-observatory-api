@@ -1,19 +1,13 @@
-import importlib
-import glob
+"""Models package for ingestion microservice."""
 
-# List all files in the current directory
-models = glob.glob("models/*.py")
-modules = []
+from models.base import Base
+from models.observation import ObservationORM
+from models.clip_classification import ClipClassificationORM
+from models.open_search_index import OpenSearchIndexORM
 
-for file in models:
-    # Extract the module name from the file path
-    module_name = file[:-3].replace("/", ".")
-    if module_name != "models.__init__":
-        # Import the module dynamically
-        module = importlib.import_module(module_name)
-        modules.append(module)
-        
-# Emulate from module import * behaviour
-for module in modules:
-    names = [name for name in module.__dict__ if not name.startswith('_')]
-    globals().update({name: getattr(module, name) for name in names})
+__all__ = [
+    'Base',
+    'ObservationORM',
+    'ClipClassificationORM',
+    'OpenSearchIndexORM',
+]

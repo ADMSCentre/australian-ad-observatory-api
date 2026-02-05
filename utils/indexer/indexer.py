@@ -1,29 +1,33 @@
-"""Indexer module for handling ad indexing for querying."""
+"""Indexer module for handling ad indexing to RDS and OpenSearch."""
 
 from typing_extensions import Literal
-from db.shared_repositories import observations_repository
-from models.observation import Observation
+
+from db.database import get_session
+from models.observation import ObservationORM
 from utils.opensearch.rdo_open_search import AdWithRDO, RdoOpenSearch
 
+
 class Indexer:
+    """Handles indexing of ads to both RDS and OpenSearch."""
+    
     def __init__(self, 
-                 stage: Literal['prod', 'test', 'staging']='prod',
+                 stage: Literal['prod', 'test', 'staging'] = 'prod',
                  index_name: str | None = None, 
-                 skip_on_error=True):
+                 skip_on_error: bool = True):
         self.stage = stage
         self.skip_on_error = skip_on_error
         self.index_name = index_name
         
     def put_index_rds(self, observer_id: str, timestamp: str, ad_id: str):
-        """Add an observation to an RDS table."""
-        observation = Observation(
-            observer_id=observer_id,
-            observation_id=ad_id,
-            timestamp=int(timestamp)
-        )
+        """Add an observation to the RDS observations table."""
         try:
-            with observations_repository.create_session() as session:
-                session.create(observation)
+            with get_session() as session:
+                observation = ObservationORM(
+                    observer_id=observer_id,
+                    observation_id=ad_id,
+                    timestamp=int(timestamp)
+                )
+                session.merge(observation)  # merge handles upsert
         except Exception as e:
             print(f"Error indexing ad {ad_id}: {str(e)}")
             if not self.skip_on_error:
@@ -33,10 +37,9 @@ class Indexer:
         """Put an ad into OpenSearch index."""
         if not self.index_name:
             raise ValueError("No index name provided. Please set index_name before indexing.")
-        index_name = self.index_name
         
         try:
-            open_search = RdoOpenSearch(index=index_name)
+            open_search = RdoOpenSearch(index=self.index_name)
             open_search.put(ad_with_rdo=AdWithRDO(
                 observer_id=observer_id,
                 timestamp=timestamp,
@@ -50,11 +53,11 @@ class Indexer:
     def delete_index_rds(self, observer_id: str, timestamp: str, ad_id: str):
         """Delete an observation from the RDS table."""
         try:
-            with observations_repository.create_session() as session:
-                session.delete({
-                    'observer_id': observer_id,
-                    'observation_id': ad_id
-                })
+            with get_session() as session:
+                session.query(ObservationORM).filter_by(
+                    observer_id=observer_id,
+                    observation_id=ad_id
+                ).delete()
         except Exception as e:
             print(f"Error deleting ad {ad_id} from RDS: {str(e)}")
             if not self.skip_on_error:
@@ -64,10 +67,9 @@ class Indexer:
         """Delete an ad from OpenSearch index."""
         if not self.index_name:
             raise ValueError("No index name provided. Please set index_name before deleting.")
-        index_name = self.index_name
         
         try:
-            open_search = RdoOpenSearch(index=index_name)
+            open_search = RdoOpenSearch(index=self.index_name)
             open_search.delete(AdWithRDO(
                 observer_id=observer_id,
                 timestamp=timestamp,

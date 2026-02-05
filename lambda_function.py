@@ -1,196 +1,191 @@
-import os
+"""Lambda handler for S3 event processing.
+
+This module handles S3 events for the ingestion microservice:
+- Clip classification files: Process and store in RDS
+- RDO output files: Index to RDS and OpenSearch
+"""
+
 import traceback
-import urllib
-from middlewares import parse_body
-from routes import parse_path_parameters, parse_query_parameters, route
-import json
-from routes import routes
+import urllib.parse
+
 import utils.observations_sub_bucket as observations_sub_bucket
-from config import config
+from utils.etl.clip_classification import process_single_ad as process_clip_classification
+from utils.indexer.indexer import Indexer
+from utils.indexer.registry import IndexRegistry
 
-@route('reflect', 'POST')
-def reflect(event):
-    """Reflect the event back to the client.
+
+def handle_clip_classification(key: str) -> dict:
+    """Process a clip classification file from S3.
     
-    Return the event object as the response.
-    ---
-    requestBody:
-        required: false
-        content:
-            application/json:
-                schema:
-                    type: object
-    responses:
-        200:
-            description: A successful reflection
-            content:
-                application/json:
-                    schema:
-                        type: object
-        400:
-            description: A failed reflection
-            content:
-                application/json:
-                    schema:
-                        type: object
-                        properties:
-                            success:
-                                type: boolean
-                            comment:
-                                type: string
+    Expected key format: {observer_id}/clip_classifications/{observation_id}.json
+    
+    Args:
+        key: The S3 object key
+        
+    Returns:
+        Result dictionary with success status and details
     """
-    return event
+    print(f'Processing clip classification object {key}')
+    parts = key.split('/')
+    parts = [part for part in parts if part != '']  # Remove empty parts
+    
+    if len(parts) != 3:
+        raise ValueError(f'Invalid clip classification key format: {key}')
+    
+    observer_id = parts[0]
+    observation_id = parts[2].replace('.json', '')
+    
+    success = process_clip_classification(observer_id, '', observation_id)
+    
+    return {
+        'success': success,
+        'type': 'clip_classification',
+        'observer_id': observer_id,
+        'observation_id': observation_id,
+        'message': 'Clip classification processed' if success else 'Failed to process clip classification'
+    }
 
-@route('/hello', 'GET')
-def hello():
-    api_name = config.deployment.lambda_function_name
-    return {'message': f"Hello from {api_name}!"}
 
-@route('/hello/{user_id}', 'GET')
-def hello(event):
-    user_id = event['pathParameters']['user_id']
-    return {'message': f'Hello, {user_id}!'}
-
-def handle_api_gateway_event(event_raw, context):
+def handle_rdo_output(key: str) -> dict:
+    """Process an RDO output file from S3 and index it.
+    
+    Expected key format: {observer_id}/rdo/{timestamp}.{observation_id}/output.json
+    
+    Args:
+        key: The S3 object key
+        
+    Returns:
+        Result dictionary with success status and details
+    """
+    print(f'Processing RDO object {key}')
+    parts = key.split('/')
+    parts = [part for part in parts if part != '']  # Remove empty parts
+    
+    if len(parts) != 4:
+        raise ValueError(f'Invalid RDO key format: {key}')
+    
+    observer_id = parts[0]
+    timestamp_observation_id = parts[2].split('.')
+    timestamp = timestamp_observation_id[0]
+    observation_id = timestamp_observation_id[1]
+    
+    # Get the latest ready index for OpenSearch
     try:
-        event, response, context = parse_body(event_raw, context, None)
-        path = event['path']
-        method = event['httpMethod']
-        if not path.startswith('/'):
-            path = f'/{path}'
-        if path.endswith('/'):
-            path = path[:-1]
-        
-        path, query_params = parse_query_parameters(path)    
-        route, path_params = parse_path_parameters(path)
-        # print(f'Route: {route}')
-        # print(f'Path params: {path_params}')
-        # print(f'Query params: {query_params}')
-        # print(f'Method: {method}')
-        if query_params is not None and len(query_params) > 0:
-            event['queryStringParameters'] = query_params
-        if path_params is not None and len(path_params) > 0:
-            event['pathParameters'] = path_params
-        
-        
-        if route in routes and method in routes[route]:
-            action = routes[route][method]
-            _, response, _ = action(event, response, context)
-            return response.body
-
-        return {
-            'statusCode': 404,
-            'isBase64Encoded': False,
-            'headers': {
-                'Content-Type': 'application/json',
-            },
-            'body': json.dumps({
-                'success': False,
-                'comment': 'ACTION_NOT_FOUND',
-                'error': f'No route found for "{path}" with method "{method}"'
-            })
-        }
+        registry = IndexRegistry()
+        latest_index = registry.get_latest(status='ready')
+        index_name = latest_index.name if latest_index else None
     except Exception as e:
-        print(traceback.format_exc())
-        return {
-            'statusCode': 500,
-            'isBase64Encoded': False,
-            'headers': {
-                'Content-Type': 'application/json',
-            },
-            'body': json.dumps({
-                'success': False,
-                'comment': 'INTERNAL_SERVER_ERROR',
-                'error': str(e)
-            })
-        }
+        print(f"Warning: Could not get latest index, skipping OpenSearch indexing: {e}")
+        index_name = None
+    
+    # Index to RDS (always) and OpenSearch (if index available)
+    indexer = Indexer(skip_on_error=True, index_name=index_name)
+    
+    # Always index to RDS
+    indexer.put_index_rds(observer_id, timestamp, observation_id)
+    
+    # Index to OpenSearch if we have an index
+    if index_name:
+        indexer.put_index_open_search(observer_id, timestamp, observation_id)
+    
+    return {
+        'success': True,
+        'type': 'rdo_output',
+        'observer_id': observer_id,
+        'timestamp': timestamp,
+        'observation_id': observation_id,
+        'index_name': index_name,
+        'message': 'RDO indexed successfully'
+    }
 
-def handle_s3_event(event, context):
-    # Get the object from the event and show its content type
-    bucket = event['Records'][0]['s3']['bucket']['name']
-    key = urllib.parse.unquote_plus(event['Records'][0]['s3']['object']['key'], encoding='utf-8')
-    try:
-        # Only allow bucket to be the observations bucket
-        if bucket != observations_sub_bucket.MOBILE_OBSERVATIONS_BUCKET:
-            raise Exception(f'This lambda function does not support bucket {bucket}')
+
+def handle_s3_event(event: dict, context) -> dict:
+    """Handle an S3 event notification.
+    
+    Dispatches to appropriate handler based on the object key pattern:
+    - /clip_classifications/*.json -> handle_clip_classification
+    - /rdo/*/output.json -> handle_rdo_output
+    
+    Args:
+        event: The S3 event from Lambda
+        context: The Lambda context
         
-        # If the key has the following format:
-        # <observer_id>/clip_classifications/<observation_id>.json
-        # Then it is a clip classification file, process it
-        if '/clip_classifications/' in key and key.endswith('.json'):
-            print(f'Processing clip classification object {key}')
-            parts = key.split('/')
-            parts = [part for part in parts if part != '']  # Remove empty parts
-            if len(parts) != 3:
-                raise Exception(f'Invalid clip classification key format: {key}')
-            observer_id = parts[0]
-            observation_id = parts[2].replace('.json', '')
-            
-            # Import and process the clip classification
-            from utils.etl.clip_classification import process_single_ad
-            success = process_single_ad(observer_id, '', observation_id)
-            
+    Returns:
+        Result dictionary from the appropriate handler
+    """
+    bucket = event['Records'][0]['s3']['bucket']['name']
+    key = urllib.parse.unquote_plus(
+        event['Records'][0]['s3']['object']['key'], 
+        encoding='utf-8'
+    )
+    
+    # Validate bucket
+    if bucket != observations_sub_bucket.MOBILE_OBSERVATIONS_BUCKET:
+        raise ValueError(f'Unsupported bucket: {bucket}')
+    
+    # Route to appropriate handler based on key pattern
+    if '/clip_classifications/' in key and key.endswith('.json'):
+        return handle_clip_classification(key)
+    
+    if key.endswith('/output.json') and '/rdo/' in key:
+        return handle_rdo_output(key)
+    
+    # Unknown file type - log and return
+    print(f'Ignoring unrecognized S3 object: {key}')
+    return {
+        'success': True,
+        'type': 'ignored',
+        'key': key,
+        'message': 'Object key pattern not recognized, skipping'
+    }
+
+
+def lambda_handler(event: dict, context) -> dict:
+    """Main Lambda entry point.
+    
+    This function handles S3 event notifications only.
+    
+    Args:
+        event: The Lambda event (must be an S3 event)
+        context: The Lambda context
+        
+    Returns:
+        Result dictionary with processing status
+    """
+    try:
+        # S3 events have a Records array
+        if not event.get('Records'):
             return {
-                'success': success,
-                'observer_id': observer_id,
-                'observation_id': observation_id,
-                'message': 'Clip classification processed' if success else 'Failed to process clip classification'
+                'success': False,
+                'error': 'Not an S3 event - missing Records field'
             }
         
-        # If the key has the following format:
-        # <observer_id>/rdo/<timestamp>.<observation_id>/output.json
-        # Then it is an RDO so request it to be indexed via the API
-        if key.endswith('/output.json'):
-            print(f'Processing RDO object {key}')
-            parts = key.split('/')
-            parts = [part for part in parts if part != ''] # Remove empty parts
-            if len(parts) != 4:
-                raise Exception(f'Invalid key format: {key}')
-            observer_id = parts[0]
-            timestamp_observation_id = parts[2].split('.')
-            timestamp = timestamp_observation_id[0]
-            observation_id = timestamp_observation_id[1]
-            return invoke({
-                "path": f'ads/{observer_id}/{timestamp}.{observation_id}/request_index',
-                "httpMethod": 'GET',
-                "headers": {
-                    'Content-Type': 'application/json',
-                }
-            })
-        
-        return key
-    except Exception as e:
-        print(f'Error getting object {key} from bucket {bucket}')
-        print(e)
-        raise e
-
-def lambda_handler(event, context):
-    # If the event has records, it is an S3 event, so handle S3 event
-    if event.get("Records"):
-        print('Handling S3 event', event)
+        print('Handling S3 event:', event)
         return handle_s3_event(event, context)
-    # If the event has a path, it is an API Gateway event, so handle API call
-    if event.get("path"):
-        print('Handling API Gateway event', event) 
-        return handle_api_gateway_event(event, context)
-
-def invoke(event, verbose=False):
-    result = lambda_handler({
-        **event,
-        "headers": {
-            'Content-Type': 'application/json',
-            **(event.get('headers', {}))
+        
+    except Exception as e:
+        print(f'Error processing event: {e}')
+        print(traceback.format_exc())
+        return {
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
         }
-    }, {})
-    if verbose: print(json.dumps(result, indent=2))
-    return result
 
+
+# For local testing
 if __name__ == "__main__":
-    event = {
-        "path": 'ads/153ccc28-f378-4274-98d3-0258574a03c5/1732759316233.5933a2d9-0e55-41b8-99a7-1a308a231956/request_index', 
-        "httpMethod": 'GET',
-        "headers": {
-            'Content-Type': 'application/json',
-        }
+    # Example: Test with a mock S3 event for an RDO output
+    test_event = {
+        "Records": [{
+            "s3": {
+                "bucket": {"name": observations_sub_bucket.MOBILE_OBSERVATIONS_BUCKET},
+                "object": {
+                    "key": "153ccc28-f378-4274-98d3-0258574a03c5/rdo/1732759316233.5933a2d9-0e55-41b8-99a7-1a308a231956/output.json"
+                }
+            }
+        }]
     }
-    invoke(event, verbose=True)
+    
+    result = lambda_handler(test_event, {})
+    print(f"Result: {result}")

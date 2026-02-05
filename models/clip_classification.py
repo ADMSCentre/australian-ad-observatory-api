@@ -1,6 +1,7 @@
+"""Clip classification ORM model for storing ad classification data."""
+
 from uuid import uuid4
-from typing import Optional
-from pydantic import BaseModel
+from dataclasses import dataclass
 from sqlalchemy import BigInteger, Float, String
 from sqlalchemy.orm import Mapped, mapped_column
 from .base import Base
@@ -45,18 +46,9 @@ class ClipClassificationORM(Base):
         return f"<ClipClassification(id={self.id}, observation_id={self.observation_id}, label={self.label}, score={self.score})>"
 
 
-class ClipClassification(BaseModel):
-    """Pydantic model for ad clip classification data."""
-    id: str
-    observation_id: str
-    label: str
-    score: float
-    created_at: int
-    updated_at: int
-
-
-class CompositeClassification(BaseModel):
-    """Pydantic model for parsing S3 JSON composite classification data."""
+@dataclass
+class CompositeClassification:
+    """Data class for parsing S3 JSON composite classification data."""
     ranking: int
     label: str
     score_normalized: float
