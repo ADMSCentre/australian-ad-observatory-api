@@ -29,7 +29,7 @@ class Indexer:
                 )
                 session.merge(observation)  # merge handles upsert
         except Exception as e:
-            print(f"Error indexing ad {ad_id}: {str(e)}")
+            print(f"Error indexing ad {observer_id}/{ad_id}: {str(e)}")
             if not self.skip_on_error:
                 raise e
         
@@ -46,7 +46,7 @@ class Indexer:
                 ad_id=ad_id
             ))
         except Exception as e:
-            print(f"Error indexing ad {ad_id}: {str(e)}")
+            print(f"Error indexing ad {observer_id}/{ad_id}: {str(e)}")
             if not self.skip_on_error:
                 raise e
             

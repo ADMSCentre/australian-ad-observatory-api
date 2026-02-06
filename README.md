@@ -41,23 +41,23 @@ docker tag registry.rc.nectar.org.au/aio2024-private/aao-enrichment-ingestion:la
 
 ```bash
 # Set environment variables inline or use --env-file
-docker run --rm --env-file .env -v $(pwd)/logs:/app/logs aao-enrichment-ingestion scripts.index_rdo --new --workers 10
+docker run --rm --env-file .env -v $(pwd)/logs:/app/logs registry.rc.nectar.org.au/aio2024-private/aao-enrichment-ingestion scripts.index_rdo --new --workers 10
 ```
 
 #### Common Examples
 
 ```bash
 # RDO backfill to new index
-docker run --rm --env-file .env aao-enrichment-ingestion scripts.index_rdo --new --workers 50
+docker run --rm --env-file .env registry.rc.nectar.org.au/aio2024-private/aao-enrichment-ingestion scripts.index_rdo --new --workers 50
 
 # CLIP classification backfill
-docker run --rm --env-file .env aao-enrichment-ingestion scripts.index_clip --workers 8
+docker run --rm --env-file .env registry.rc.nectar.org.au/aio2024-private/aao-enrichment-ingestion scripts.index_clip --workers 8
 
 # Interactive cleanup (requires -it)
-docker run -it --rm --env-file .env aao-enrichment-ingestion scripts.index_rdo --cleanup
+docker run -it --rm --env-file .env registry.rc.nectar.org.au/aio2024-private/aao-enrichment-ingestion scripts.index_rdo --cleanup
 
 # Dry-run for validation
-docker run --rm --env-file .env aao-enrichment-ingestion scripts.index_rdo --dry-run
+docker run --rm --env-file .env registry.rc.nectar.org.au/aio2024-private/aao-enrichment-ingestion scripts.index_rdo --dry-run
 ```
 
 **Number of Workers** The optimal number of workers typically ranges from 2-4x the number of CPU cores available, depending on memory, network I/O, and system resources. For example, on a 4-core system, try 8-16 workers. Monitor system load and adjust accordingly.
