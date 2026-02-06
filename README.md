@@ -24,33 +24,40 @@ The service can be run directly from Docker for easy deployment and testing.
 - Docker installed
 - Access to required AWS resources (S3, OpenSearch, PostgreSQL)
 
-#### Build the Image
+#### Pull Latest Image
+
+> Note: Ensure you have access to the `registry.rc.nectar.org.au/aio2024-private` registry to pull the image. To log in, use:
+>
+> ```bash
+> docker login registry.rc.nectar.org.au -u <username> -p <password>
+> ```
 
 ```bash
-docker build -t aao-ingestion-service .
+docker pull registry.rc.nectar.org.au/aio2024-private/aao-enrichment-ingestion:latest
+docker tag registry.rc.nectar.org.au/aio2024-private/aao-enrichment-ingestion:latest aao-enrichment-ingestion:latest
 ```
 
 #### Run with Environment Variables
 
 ```bash
 # Set environment variables inline or use --env-file
-docker run --rm --env-file .env -v $(pwd)/logs:/app/logs aao-ingestion-service scripts.index_rdo --new --workers 10
+docker run --rm --env-file .env -v $(pwd)/logs:/app/logs aao-enrichment-ingestion scripts.index_rdo --new --workers 10
 ```
 
 #### Common Examples
 
 ```bash
 # RDO backfill to new index
-docker run --rm --env-file .env aao-ingestion-service scripts.index_rdo --new --workers 50
+docker run --rm --env-file .env aao-enrichment-ingestion scripts.index_rdo --new --workers 50
 
 # CLIP classification backfill
-docker run --rm --env-file .env aao-ingestion-service scripts.index_clip --workers 8
+docker run --rm --env-file .env aao-enrichment-ingestion scripts.index_clip --workers 8
 
 # Interactive cleanup (requires -it)
-docker run -it --rm --env-file .env aao-ingestion-service scripts.index_rdo --cleanup
+docker run -it --rm --env-file .env aao-enrichment-ingestion scripts.index_rdo --cleanup
 
 # Dry-run for validation
-docker run --rm --env-file .env aao-ingestion-service scripts.index_rdo --dry-run
+docker run --rm --env-file .env aao-enrichment-ingestion scripts.index_rdo --dry-run
 ```
 
 **Number of Workers** The optimal number of workers typically ranges from 2-4x the number of CPU cores available, depending on memory, network I/O, and system resources. For example, on a 4-core system, try 8-16 workers. Monitor system load and adjust accordingly.
@@ -254,13 +261,59 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### Database Models
 
-#### Observations Table
-Tracks indexed ads with observer_id, observation_id, and timestamp.
+### Deployment
 
-#### Ad Classifications Table
-Stores clip classification labels and scores for each observation.
+The service can be deployed to a container registry using the automated deployment scripts.
 
-#### Open Search Indices Table
-Registry of OpenSearch index versions with status tracking (created, in_progress, ready, failed).
+#### Prerequisites
+
+- Docker installed and configured
+- Access to `registry.rc.nectar.org.au/aio2024-private` registry
+- Version number stored in `version` file
+
+#### Automated Deployment
+
+Use the provided scripts to build and deploy the service:
+
+**Windows (PowerShell):**
+```powershell
+.\scripts\bump.ps1
+```
+
+**Linux/macOS (Bash):**
+```bash
+./scripts/bump.sh
+```
+
+These scripts will:
+1. Read the current version from the `version` file
+2. Build the Docker image with the version tag
+3. Tag the image for the registry with version and `latest` tags
+4. Push both tags to the registry
+
+#### Manual Deployment
+
+If you prefer to run the commands manually:
+
+```bash
+# Read current version
+version=$(cat version)
+
+# Build and tag (replace VERSION with actual version)
+docker build . -t aao-enrichment-ingestion:VERSION
+docker tag aao-enrichment-ingestion:VERSION registry.rc.nectar.org.au/aio2024-private/aao-enrichment-ingestion:VERSION
+docker tag aao-enrichment-ingestion:VERSION registry.rc.nectar.org.au/aio2024-private/aao-enrichment-ingestion:latest
+
+# Push images
+docker push registry.rc.nectar.org.au/aio2024-private/aao-enrichment-ingestion:VERSION
+docker push registry.rc.nectar.org.au/aio2024-private/aao-enrichment-ingestion:latest
+
+echo "Pushed VERSION"
+```
+
+#### Version Management
+
+- Update the `version` file with the new version number before deployment
+- Follow semantic versioning (MAJOR.MINOR.PATCH)
+- The automated scripts use the version from the file
