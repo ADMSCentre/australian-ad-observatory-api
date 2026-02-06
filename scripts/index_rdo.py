@@ -9,16 +9,17 @@ This script handles:
 - Cleaning up/deleting OpenSearch indices and their registry entries
 
 Usage:
-    python -m scripts.index_rdo [--new] [--workers N] [--rds-only] [--opensearch-only] [--dry-run]
+    python -m scripts.index_rdo [--new] [--workers N] [--rds-only] [--opensearch-only] [--dry-run] [--observer-id OBSERVER] [--observation-id AD_ID]
     python -m scripts.index_rdo --cleanup
-    
+
 Options:
     --new              Create a new OpenSearch index instead of updating the latest
     --workers N        Number of worker processes for parallel indexing (default: 50)
     --prefix PREFIX    OpenSearch index name prefix (default: reduced-rdo-index_)
     --rds-only         Only index to RDS, skip OpenSearch
     --opensearch-only  Only index to OpenSearch, skip RDS
-    --dry-run          Preview what would be indexed without making changes
+    --observer-id OBSERVER    Limit backfill to a single observer (UUID)
+    --observation-id AD_ID    Select a single observation/ad by ID (requires --observer-id)
     --cleanup          Delete an OpenSearch index (with confirmation)
 """
 
@@ -222,7 +223,9 @@ def backfill_rdo(
     max_workers: int = DEFAULT_WORKERS,
     rds_only: bool = False,
     opensearch_only: bool = False,
-    dry_run: bool = False
+    dry_run: bool = False,
+    observer_id: Optional[str] = None,
+    observation_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Run the full RDO backfill process.
     
@@ -233,6 +236,8 @@ def backfill_rdo(
         rds_only: If True, only index to RDS
         opensearch_only: If True, only index to OpenSearch
         dry_run: If True, preview changes without making them
+        observer_id: If set, only process entries for this observer
+        observation_id: If set, only process a single observation/ad (requires observer_id)
         
     Returns:
         Statistics dictionary
@@ -243,8 +248,19 @@ def backfill_rdo(
     if dry_run:
         logger.warning("*** DRY-RUN MODE: No changes will be made ***")
     
+    # Validate selection arguments
+    if observation_id and not observer_id:
+        raise ValueError("When using --observation-id, you must provide --observer-id")
+
     # Collect all RDO entries
-    entries = list_all_rdo_entries()
+    if observer_id:
+        logger.info(f"Filtering RDO entries for observer: {observer_id}")
+        entries = list_rdo_entries_for_observer(observer_id)
+        if observation_id:
+            entries = [e for e in entries if e["ad_id"] == observation_id]
+    else:
+        entries = list_all_rdo_entries()
+
     if not entries:
         logger.warning("No RDO entries found")
         return {'entries_found': 0}
@@ -474,6 +490,16 @@ if __name__ == "__main__":
         help="Delete an OpenSearch index (interactive selection with confirmation)"
     )
     parser.add_argument(
+        "--observer-id",
+        type=str,
+        help="Observer UUID to limit the backfill to a single observer"
+    )
+    parser.add_argument(
+        "--observation-id",
+        type=str,
+        help="Observation AD id to limit to a single ad (requires --observer-id)"
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Preview what would be indexed without making changes"
@@ -487,6 +513,10 @@ if __name__ == "__main__":
         if args.rds_only and args.opensearch_only:
             logger.error("Cannot specify both --rds-only and --opensearch-only")
             exit(1)
+
+        if args.observation_id and not args.observer_id:
+            logger.error("--observation-id requires --observer-id to be specified")
+            exit(1)
         
         try:
             backfill_rdo(
@@ -495,7 +525,9 @@ if __name__ == "__main__":
                 max_workers=args.workers,
                 rds_only=args.rds_only,
                 opensearch_only=args.opensearch_only,
-                dry_run=args.dry_run
+                dry_run=args.dry_run,
+                observer_id=args.observer_id,
+                observation_id=args.observation_id,
             )
         except Exception as e:
             logger.error(f"Backfill failed: {e}")
