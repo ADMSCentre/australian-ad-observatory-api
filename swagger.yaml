@@ -3132,14 +3132,17 @@ paths:
             schema:
               type: object
               properties:
-                query: null
-                type: array
-                description: List of field paths to include in the export
-                include_images: null
-                default: false
-                fields: null
-                items:
-                  type: string
+                query:
+                  type: object
+                  description: Query to filter the data to export
+                include_images:
+                  type: boolean
+                  default: false
+                fields:
+                  type: array
+                  items:
+                    type: string
+                  description: List of field paths to include in the export
       responses:
         201:
           description: Export job created successfully
@@ -3562,6 +3565,163 @@ paths:
           description: Key belongs to another user
         404:
           description: Key not found
+      security:
+      - bearerAuth: []
+      - apiKeyAuth: []
+  /ccl/entities:
+    get:
+      summary: Retrieve a paginated list of advertising entities from CCL enrichments.
+      description: 'Supports filtering by observation_id, observer_id, platform and entity
+        type. Uses
+      
+        cursor-based pagination with the entity ID as the cursor.'
+      
+      tags:
+      - ccl
+      parameters:
+      - in: query
+        name: limit
+        schema:
+          type: integer
+        required: false
+        description: Number of items per page (default 100, max 1000)
+      - in: query
+        name: cursor
+        schema:
+          type: string
+        required: false
+        description: Entity ID to start after (for cursor-based pagination)
+      - in: query
+        name: observation_id
+        schema:
+          type: string
+        required: false
+      - in: query
+        name: observer_id
+        schema:
+          type: string
+        required: false
+      - in: query
+        name: platform
+        schema:
+          type: string
+        required: false
+      - in: query
+        name: type
+        schema:
+          type: string
+        required: false
+        description: Entity type filter
+      responses:
+        200:
+          description: A paginated list of advertising entities
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  entities:
+                    type: array
+                    items:
+                      type: object
+                  pagination:
+                    type: object
+                    properties:
+                      next_cursor:
+                        type: string
+                        nullable: true
+                        description: Cursor for the next page (null if no more results)
+        500:
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  comment:
+                    type: string
+                  error:
+                    type: string
+      security:
+      - bearerAuth: []
+      - apiKeyAuth: []
+  /ccl/snapshots:
+    get:
+      summary: Retrieve a paginated list of advertisement snapshots from CCL enrichments.
+      description: 'Supports filtering by observation_id, observer_id and platform. Uses
+      
+        cursor-based pagination with the snapshot ID as the cursor.'
+      
+      tags:
+      - ccl
+      parameters:
+      - in: query
+        name: limit
+        schema:
+          type: integer
+        required: false
+        description: Number of items per page (default 100, max 1000)
+      - in: query
+        name: cursor
+        schema:
+          type: string
+        required: false
+        description: Snapshot ID to start after (for cursor-based pagination)
+      - in: query
+        name: observation_id
+        schema:
+          type: string
+        required: false
+      - in: query
+        name: observer_id
+        schema:
+          type: string
+        required: false
+      - in: query
+        name: platform
+        schema:
+          type: string
+        required: false
+      responses:
+        200:
+          description: A paginated list of advertisement snapshots
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  snapshots:
+                    type: array
+                    items:
+                      type: object
+                  pagination:
+                    type: object
+                    properties:
+                      next_cursor:
+                        type: string
+                        nullable: true
+                        description: Cursor for the next page (null if no more results)
+        500:
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  comment:
+                    type: string
+                  error:
+                    type: string
       security:
       - bearerAuth: []
       - apiKeyAuth: []
