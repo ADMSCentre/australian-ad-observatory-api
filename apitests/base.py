@@ -75,11 +75,7 @@ def get_login_token():
 def live_handler(event, context):
     # Invoke the live lambda function handler (for testing against the deployed API)
     import boto3
-    session = boto3.Session(
-        aws_access_key_id=config.aws.access_key_id,
-        aws_secret_access_key=config.aws.secret_access_key,
-        region_name=config.aws.region
-    )
+    session = boto3.Session(region_name=config.aws.region)
     lambda_client = session.client('lambda')
     response = lambda_client.invoke(
         FunctionName=config.deployment.lambda_function_name,

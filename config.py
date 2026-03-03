@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-import configparser
+from typing import Mapping
 import os
 from dotenv import load_dotenv
 
@@ -8,6 +8,7 @@ class AwsConfig:
     access_key_id: str
     secret_access_key: str
     region: str
+    session_token: str | None = None
     
 @dataclass
 class DeploymentConfig:
@@ -77,77 +78,73 @@ class Config:
     buckets: BucketsConfig
     test: TestConfig
 
-def _create_config(config) -> Config:
+def _get_str(values: Mapping[str, str | None], key: str, default: str = '') -> str:
+    """Helper to safely get string values from mapping."""
+    value = values.get(key)
+    return str(value) if value else default
+
+def _create_config_from_dict(values: Mapping[str, str | None]) -> Config:
     return Config(
         aws=AwsConfig(
-            access_key_id=config['AWS']['ACCESS_KEY_ID'],
-            secret_access_key=config['AWS']['SECRET_ACCESS_KEY'],
-            region=config['AWS']['REGION']
+            access_key_id=_get_str(values, 'AWS_ACCESS_KEY_ID'),
+            secret_access_key=_get_str(values, 'AWS_SECRET_ACCESS_KEY'),
+            region=_get_str(values, 'AWS_REGION'),
+            session_token=values.get('AWS_SESSION_TOKEN', None)
         ),
         deployment=DeploymentConfig(
-            lambda_function_name=config['DEPLOYMENT']['LAMBDA_FUNCTION_NAME'],
-            zip_file=config['DEPLOYMENT']['ZIP_FILE'],
-            deployment_bucket=config['DEPLOYMENT']['DEPLOYMENT_BUCKET']
+            lambda_function_name=_get_str(values, 'DEPLOYMENT_LAMBDA_FUNCTION_NAME'),
+            zip_file=_get_str(values, 'DEPLOYMENT_ZIP_FILE'),
+            deployment_bucket=_get_str(values, 'DEPLOYMENT_BUCKET')
         ),
         jwt=JwtConfig(
-            secret=config['JWT']['SECRET'],
-            expiration=int(config['JWT']['EXPIRATION'])
+            secret=_get_str(values, 'JWT_SECRET'),
+            expiration=int(_get_str(values, 'JWT_EXPIRATION', '86400'))
         ),
         api_key=ApiKeyConfig(
-            salt=config['API_KEY']['SALT']
+            salt=_get_str(values, 'API_KEY_SALT')
         ),
         open_search=OpenSearchConfig(
-            endpoint=config['OPEN_SEARCH']['ENDPOINT']
+            endpoint=_get_str(values, 'OPEN_SEARCH_ENDPOINT')
         ),
         postgres=PostgresConfig(
-            host=config['POSTGRES']['HOST'],
-            port=int(config['POSTGRES']['PORT']),
-            database=config['POSTGRES']['DATABASE'],
-            username=config['POSTGRES']['USERNAME'],
-            password=config['POSTGRES']['PASSWORD']
+            host=_get_str(values, 'POSTGRES_HOST'),
+            port=int(_get_str(values, 'POSTGRES_PORT', '5432')),
+            database=_get_str(values, 'POSTGRES_DATABASE'),
+            username=_get_str(values, 'POSTGRES_USERNAME'),
+            password=_get_str(values, 'POSTGRES_PASSWORD')
         ),
         cilogon=CilogonConfig(
-            client_id=config['CILOGON']['CLIENT_ID'],
-            client_secret=config['CILOGON']['CLIENT_SECRET'],
-            metadata_url=config['CILOGON']['METADATA_URL'],
-            redirect_uri=config['CILOGON']['REDIRECT_URI']
+            client_id=_get_str(values, 'CILOGON_CLIENT_ID'),
+            client_secret=_get_str(values, 'CILOGON_CLIENT_SECRET'),
+            metadata_url=_get_str(values, 'CILOGON_METADATA_URL'),
+            redirect_uri=_get_str(values, 'CILOGON_REDIRECT_URI')
         ),
         app=AppConfig(
-            state_cookie_secret=config['APP']['STATE_COOKIE_SECRET'],
-            salt=config['APP']['SALT'],
-            frontend_url=config['APP']['FRONTEND_URL']
+            state_cookie_secret=_get_str(values, 'APP_STATE_COOKIE_SECRET'),
+            salt=_get_str(values, 'APP_SALT'),
+            frontend_url=_get_str(values, 'APP_FRONTEND_URL')
         ),
         external_api=ExternalApiConfig(
-            ad_delete_lambda_key=config['EXTERNAL_API']['AD_DELETE_LAMBDA_KEY']
+            ad_delete_lambda_key=_get_str(values, 'EXTERNAL_API_AD_DELETE_LAMBDA_KEY')
         ),
         buckets=BucketsConfig(
-            observations=config['BUCKETS']['OBSERVATIONS'],
-            metadata=config['BUCKETS']['METADATA']
+            observations=_get_str(values, 'BUCKETS_OBSERVATIONS'),
+            metadata=_get_str(values, 'BUCKETS_METADATA')
         ),
         test=TestConfig(
-            username=config['TEST']['USERNAME'],
-            password=config['TEST']['PASSWORD']
+            username=_get_str(values, 'TEST_USERNAME'),
+            password=_get_str(values, 'TEST_PASSWORD')
         )
     )
 
-def _load_from_file(target = 'config.ini') -> Config:
-    _config = configparser.ConfigParser()
-    _config.read(target)
-    
-    return _create_config(_config)
-
-def from_string(str: str) -> Config:
-    _config = configparser.ConfigParser()
-    _config.read_string(str)
-    
-    return _create_config(_config)
-
-import os
+def from_env_string(env_string: str) -> Config:
+    """Load config from a .env format string."""
+    import io
+    from dotenv import dotenv_values
+    values = dotenv_values(stream=io.StringIO(env_string))
+    return _create_config_from_dict(values)
 
 load_dotenv(verbose=True)
 print("Loading configuration for environment:", os.getenv('ENV', 'unknown'))
 
-if os.getenv('ENV') == 'documentation':
-    config = _load_from_file('sample_config.ini')
-else:
-    config = _load_from_file('config.ini')
+config = _create_config_from_dict(os.environ)

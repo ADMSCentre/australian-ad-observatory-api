@@ -4,11 +4,7 @@ import json
 
 from config import config
 
-session_sydney = boto3.Session(
-    region_name='ap-southeast-2',
-    aws_access_key_id=config.aws.access_key_id,
-    aws_secret_access_key=config.aws.secret_access_key
-)
+session_sydney = boto3.Session(region_name='ap-southeast-2')
 
 MOBILE_OBSERVATIONS_BUCKET = config.buckets.observations
 

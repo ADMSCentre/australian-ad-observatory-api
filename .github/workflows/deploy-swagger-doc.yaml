@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Setup config
-        run: cp sample_config.ini config.ini
+        run: cp sample.env .env
 
       # source: https://docs.github.com/en/actions/use-cases-and-examples/building-and-testing/building-and-testing-python
       - name: Set up Python

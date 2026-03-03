@@ -44,7 +44,13 @@ This also hosts the [documentation](https://admscentre.github.io/australian-ad-o
 
 ## Setup
 
-1. Create a `config.ini` file in the root directory of the project to store the AWS credentials and other settings. An example `sample_config.ini` is provided for reference.
+1. Create a `.env` file in the root directory of the project to store configuration settings. An example `sample.env` is provided for reference.
+
+   > [!NOTE]
+   >
+   > When running on AWS Lambda, you do **not** need to set `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, or `AWS_SESSION_TOKEN`. AWS Lambda automatically provides these credentials via environment variables based on the Lambda function's IAM role.
+   >
+   > For local development, you can optionally include AWS credentials in `.env` to use local AWS CLI credentials or temporary credentials from credential providers.
 
 2. Use [AWS SAM CLI](https://github.com/aws/aws-sam-cli) to run the API locally.
 
@@ -153,8 +159,8 @@ These tests target the API endpoints and are located in the `apitests` directory
 > [!IMPORTANT]
 >
 > The API tests are integration tests that target many protected endpoints and
-> will require valid authentication credentials to run successfully. you will 
-> need to set up the `config.ini` file with a valid `USERNAME` and `PASSWORD` 
+> will require valid authentication credentials to run successfully. You will 
+> need to set up the `.env` file with a valid `TEST_USERNAME` and `TEST_PASSWORD` 
 > of actual accounts to run these tests successfully.
 
 To run a specific test file:
@@ -215,10 +221,10 @@ From the root directory, run the `package.sh` script to create the deployment pa
 
 **Deploy the package to AWS Lambda**:
    
-From the root directory, run the `deploy.py` script to upload the deployment package to AWS Lambda. Ensure that your `config.ini` file contains the correct AWS credentials and settings.
+From the root directory, run the `deploy.py` script to upload the deployment package to AWS Lambda. The script reads configuration from `.env.dev` or `.env.prod` files based on the stage parameter.
 
 ```bash
-python -m scripts.deploy
+python -m scripts.deploy prod
 ```
 
 This will update the Lambda function with the new code and dependencies.
@@ -235,9 +241,7 @@ python -m scripts.pulse
 >
 > **Deploying to production**
 >
-> First, update the `config.ini` with the production settings, such as the `LAMBDA_FUNCTION_NAME`, `DATABASE`, `REDIRECT_URI`, and `FRONTEND_URL`.
->
-> Then, run the following commands to:
+> Run the following commands to:
 >
 > 1. Perform any necessary database migrations.
 > 2. Package the deployment.
@@ -245,7 +249,7 @@ python -m scripts.pulse
 > 
 > ```bash
 > alembic upgrade head
-> ./scripts/package.sh
+> ./scripts/package.sh prod
 > python -m scripts.deploy prod
 > ```
 

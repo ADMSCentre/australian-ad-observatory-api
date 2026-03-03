@@ -57,11 +57,7 @@ class S3StorageClient(BaseStorageClient):
 
     def connect(self):
         """Connect to the S3 service."""
-        session = boto3.Session(
-            aws_access_key_id=config.aws.access_key_id,
-            aws_secret_access_key=config.aws.secret_access_key,
-            region_name='ap-southeast-2'
-        )
+        session = boto3.Session(region_name='ap-southeast-2')
         self.s3 = session.client('s3')
         self.connected = True
 

@@ -13,11 +13,7 @@ from models.project import Project, ProjectMemberRole, TeamMember, Cell
 
 from config import config
 
-session = boto3.Session(
-    aws_access_key_id=config.aws.access_key_id,
-    aws_secret_access_key=config.aws.secret_access_key,
-    region_name=config.aws.region
-)
+session = boto3.Session(region_name=config.aws.region)
 
 PROJECTS_FOLDER_PREFIX = 'projects'
 

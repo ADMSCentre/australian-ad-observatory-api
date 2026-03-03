@@ -8,10 +8,7 @@ import boto3
 
 from config import config
 
-session = boto3.Session(
-    aws_access_key_id=config.aws.access_key_id,
-    aws_secret_access_key=config.aws.secret_access_key
-)
+session = boto3.Session(region_name=config.aws.region)
 
 lambda_client = session.client('lambda', region_name=config.aws.region)
 

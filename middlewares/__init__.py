@@ -6,11 +6,7 @@ import boto3
 
 from config import config
 
-session_us_east = boto3.Session(
-    region_name='us-east-2',
-    aws_access_key_id=config.aws.access_key_id,
-    aws_secret_access_key=config.aws.secret_access_key
-)
+session_us_east = boto3.Session(region_name='us-east-2')
 
 def parse_body(event_raw, context, response):
     event = event_raw

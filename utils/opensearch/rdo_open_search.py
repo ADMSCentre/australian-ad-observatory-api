@@ -12,11 +12,7 @@ OPEN_SEARCH_ENDPOINT = config.open_search.endpoint
 SERVICE = 'aoss'
 AWS_CONFIG = config.aws
 
-session = boto3.Session(
-    region_name=AWS_CONFIG.region,
-    aws_access_key_id=AWS_CONFIG.access_key_id,
-    aws_secret_access_key=AWS_CONFIG.secret_access_key
-)
+session = boto3.Session(region_name=AWS_CONFIG.region)
 credentials = session.get_credentials()
 awsauth = AWS4Auth(credentials.access_key, credentials.secret_key,
                    AWS_CONFIG.region, SERVICE, session_token=credentials.token)

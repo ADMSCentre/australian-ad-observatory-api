@@ -25,11 +25,7 @@ def _get_s3_client():
     """Return a cached boto3 S3 client for the ``ap-southeast-2`` region."""
     global _s3_client
     if _s3_client is None:
-        session = boto3.Session(
-            region_name="ap-southeast-2",
-            aws_access_key_id=config.aws.access_key_id,
-            aws_secret_access_key=config.aws.secret_access_key,
-        )
+        session = boto3.Session(region_name="ap-southeast-2")
         _s3_client = session.client("s3")
     return _s3_client
 

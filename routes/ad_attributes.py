@@ -18,11 +18,7 @@ ad_attributes_repository = Repository(
     )
 )
 
-session = boto3.Session(
-    aws_access_key_id=config.aws.access_key_id,
-    aws_secret_access_key=config.aws.secret_access_key,
-    region_name='ap-southeast-2'
-)
+session = boto3.Session(region_name='ap-southeast-2')
 
 ADS_BUCKET = config.buckets.observations
 AD_ATTRIBUTES_PREFIX = 'ad-custom-attributes'

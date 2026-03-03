@@ -4,11 +4,7 @@ from utils import jwt
 from utils.api_key import get_api_key_entity, update_last_used
 from db.shared_repositories import users_repository
 
-session_us_east = boto3.Session(
-    region_name='us-east-2',
-    aws_access_key_id=config.aws.access_key_id,
-    aws_secret_access_key=config.aws.secret_access_key
-)
+session_us_east = boto3.Session(region_name='us-east-2')
 
 def is_user_exists(user_id: str) -> bool:
     with users_repository.create_session() as session:

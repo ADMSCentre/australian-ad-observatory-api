@@ -18,11 +18,7 @@ ZipFileName="lambda-deployment-package.zip"
 mkdir -p $TempDir
 
 # Copy all files to the temporary directory, excluding the following folders
-rsync -av --progress . $TempDir --exclude ".git" --exclude ".github" --exclude ".vscode" --exclude "temp" --exclude "__pycache__" --exclude ".venv" --exclude "docs" --exclude "README.md" --exclude "swagger.yaml" --exclude "tests.py" --exclude "scripts" --exclude "$ZipFileName" --exclude "requirements.txt" --exclude "images" --exclude "apitests" --exclude "unittests"
-
-# Copy the appropriate config file based on stage
-echo "Copying config.$Stage.ini to $TempDir/config.ini"
-cp "config.$Stage.ini" "$TempDir/config.ini"
+rsync -av --progress . $TempDir --exclude ".git" --exclude ".github" --exclude ".vscode" --exclude "temp" --exclude "__pycache__" --exclude ".venv" --exclude "docs" --exclude "README.md" --exclude "swagger.yaml" --exclude "tests.py" --exclude "scripts" --exclude "$ZipFileName" --exclude "requirements.txt" --exclude "images" --exclude "apitests" --exclude "unittests" --exclude "*.env" --exclude "*.ini"
 
 # Install the dependencies for the 86_64 architecture
 echo "Installing dependencies for x86_64 architecture"
@@ -41,7 +37,6 @@ fi
 
 # Zip the contents of the temporary directory (at root)
 echo "Zipping the contents of the $TempDir directory"
-# zip -r ./$ZipFileName ./$TempDir/*
 cd $TempDir
 zip -rqdgds 10m ../$ZipFileName *
 cd ..

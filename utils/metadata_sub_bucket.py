@@ -8,11 +8,7 @@ from datetime import datetime
 
 from config import config
 
-session = boto3.Session(
-    aws_access_key_id=config.aws.access_key_id,
-    aws_secret_access_key=config.aws.secret_access_key,
-    region_name='ap-southeast-2'
-)
+session = boto3.Session(region_name='ap-southeast-2')
 
 s3 = session.client('s3')
 
