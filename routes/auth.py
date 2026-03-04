@@ -319,7 +319,7 @@ def cilogon_authorize(event, response: Response):
         code = query_params.get("code")  # Authorization code from CILogon
 
         headers = event.get("headers", {})
-        cookie_header = headers.get("cookie") or headers.get("Cookie")
+        cookie_header = headers.get("cookie")
         signed_state_from_cookie = None
         if cookie_header:
             cookies = {

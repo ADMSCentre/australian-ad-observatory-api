@@ -75,7 +75,7 @@ def run_with_api_key(api_key: str, endpoint: str = '/users/self', method: str = 
     :param method: The HTTP method to use
     :return: The response from the API call
     """
-    headers = {'X-API-Key': api_key}
+    headers = {'x-api-key': api_key}
     response = execute_endpoint(endpoint, method=method, headers=headers, auth=False)
     return response
 
@@ -389,7 +389,7 @@ def test_api_key_cannot_manage_itself():
     key_id = created_key['id']
     
     # Try to create another key using API key (should work since we allow it)
-    headers = {'X-API-Key': api_key}
+    headers = {'x-api-key': api_key}
     response = execute_endpoint(
         '/api-keys',
         method='POST',

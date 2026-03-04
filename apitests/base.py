@@ -106,7 +106,7 @@ def execute_endpoint(endpoint:str,
     if auth:
         token = get_login_token()
         headers = headers or {}
-        headers['Authorization'] = f'Bearer {token}'
+        headers['authorization'] = f'Bearer {token}'
     
     event = {
         'httpMethod': method,

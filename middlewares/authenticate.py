@@ -23,7 +23,7 @@ def authenticate_with_jwt(event, response, context):
         or (event, response, context) with 401 status on failure
     """
     headers = event.get('headers', {})
-    bearer = headers.get('Authorization', None)
+    bearer = headers.get('authorization', None)
     
     if bearer is None or not bearer.startswith('Bearer '):
         return None  # No JWT present, not an error
@@ -70,7 +70,7 @@ def authenticate_with_api_key(event, response, context):
         or (event, response, context) with 401 status on failure
     """
     headers = event.get('headers', {})
-    api_key = headers.get('X-API-Key', headers.get('x-api-key', None))
+    api_key = headers.get('x-api-key', None)
     
     if api_key is None:
         return None  # No API key present, not an error

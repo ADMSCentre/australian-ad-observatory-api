@@ -54,6 +54,7 @@ def hello(event):
 def handle_api_gateway_event(event_raw, context):
     try:
         event, response, context = parse_body(event_raw, context, None)
+        event['headers'] = {k.lower(): v for k, v in event.get('headers', {}).items()}
         path = event['path']
         method = event['httpMethod']
         if not path.startswith('/'):
