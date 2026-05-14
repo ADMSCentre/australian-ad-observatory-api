@@ -99,7 +99,7 @@ This also hosts the [documentation](https://admscentre.github.io/australian-ad-o
     ```bash
     python3 -m venv .venv
     source .venv/bin/activate
-    pip install -r requirements.txt
+    pip install -r requirements.dev.txt
     ```
 
     3.2 For Windows:
@@ -107,7 +107,26 @@ This also hosts the [documentation](https://admscentre.github.io/australian-ad-o
     ```powershell   
     python -m venv .venv
     .\.venv\Scripts\activate
-    pip install -r requirements.txt
+    pip install -r requirements.dev.txt
+    ```
+
+    3.3 Start the local ASGI server:
+
+    ```bash
+    uvicorn local:app --reload
+    ```
+
+    You can also run the same server with:
+
+    ```bash
+    python local.py
+    ```
+
+    The API will be available at `http://127.0.0.1:8000/`. To test it is working, try accessing the `/hello` endpoint:
+
+    ```shell
+    curl http://127.0.0.1:8000/hello
+    # {"message": "Hello from <lambda function name>!"}
     ```
 
 ## Testing

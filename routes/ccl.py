@@ -6,7 +6,9 @@ snapshots extracted from CCL enrichments.
 
 from sqlalchemy.orm import Session
 
-from db.clients.rds_storage_client import RdsStorageClient, get_db_session, db_url
+from db.clients.rds_storage_client import RdsSession, db_url
+
+_ccl_rds = RdsSession(db_url)
 from middlewares.authenticate import authenticate
 from models.advertising_entity import AdvertisingEntityORM
 from models.advertisement_snapshot import AdvertisementSnapshotORM
@@ -269,15 +271,8 @@ def get_ccl_entities(event, response: Response):
     limit, cursor = _parse_pagination_params(event)
     filters = _parse_filter_params(event)
 
-    SessionLocal, engine = get_db_session(db_url)
-    if SessionLocal is None:
-        return response.status(500).json({
-            "success": False,
-            "comment": "DATABASE_CONNECTION_FAILED",
-        })
-
     try:
-        with SessionLocal() as session:
+        with _ccl_rds.session_maker() as session:
             query = session.query(AdvertisingEntityORM)
 
             # Join to enrichments table when needed for filters
@@ -300,7 +295,6 @@ def get_ccl_entities(event, response: Response):
             if "type" in filters:
                 query = query.filter(AdvertisingEntityORM.type == filters["type"])
 
-
             # Cursor-based pagination: return rows with id > cursor
             if cursor is not None:
                 query = query.filter(AdvertisingEntityORM.id > cursor)
@@ -308,14 +302,14 @@ def get_ccl_entities(event, response: Response):
             query = query.order_by(AdvertisingEntityORM.id.asc())
             results = query.limit(limit).all()
 
-        entities = [_serialize_entity(e) for e in results]
-        next_cursor = entities[-1]["id"] if len(entities) == limit else None
-        
-        # Add related observation ids to the response
-        source_ids = [e["source_id"] for e in entities]
-        observations_by_source_id = _get_observations_for_entities(session, source_ids)
-        for entity in entities:
-            entity["observed_in"] = observations_by_source_id.get(entity["source_id"], [])
+            entities = [_serialize_entity(e) for e in results]
+            next_cursor = entities[-1]["id"] if len(entities) == limit else None
+
+            # Add related observation ids to the response
+            source_ids = [e["source_id"] for e in entities]
+            observations_by_source_id = _get_observations_for_entities(session, source_ids)
+            for entity in entities:
+                entity["observed_in"] = observations_by_source_id.get(entity["source_id"], [])
 
         return {
             "success": True,
@@ -331,9 +325,6 @@ def get_ccl_entities(event, response: Response):
             "comment": "FAILED_TO_QUERY_ENTITIES",
             "error": str(e),
         })
-    finally:
-        if engine:
-            engine.dispose()
 
 
 @route("ccl/snapshots", "GET")
@@ -413,15 +404,8 @@ def get_ccl_snapshots(event, response: Response):
     limit, cursor = _parse_pagination_params(event)
     filters = _parse_filter_params(event)
 
-    SessionLocal, engine = get_db_session(db_url)
-    if SessionLocal is None:
-        return response.status(500).json({
-            "success": False,
-            "comment": "DATABASE_CONNECTION_FAILED",
-        })
-
     try:
-        with SessionLocal() as session:
+        with _ccl_rds.session_maker() as session:
             query = session.query(AdvertisementSnapshotORM)
 
             # Join to enrichments table when needed for filters
@@ -440,7 +424,6 @@ def get_ccl_snapshots(event, response: Response):
                     )
                     query = _apply_observation_filters(query, filters)
 
-
             # Cursor-based pagination
             if cursor is not None:
                 query = query.filter(AdvertisementSnapshotORM.id > cursor)
@@ -448,14 +431,14 @@ def get_ccl_snapshots(event, response: Response):
             query = query.order_by(AdvertisementSnapshotORM.id.asc())
             results = query.limit(limit).all()
 
-        snapshots = [_serialize_snapshot(s) for s in results]
-        next_cursor = snapshots[-1]["id"] if len(snapshots) == limit else None
-        
-        # Add related observation ids to the response
-        source_ids = [s["source_id"] for s in snapshots]
-        observations_by_source_id = _get_observations_for_snapshots(session, source_ids)
-        for snapshot in snapshots:
-            snapshot["observed_in"] = observations_by_source_id.get(snapshot["source_id"], [])
+            snapshots = [_serialize_snapshot(s) for s in results]
+            next_cursor = snapshots[-1]["id"] if len(snapshots) == limit else None
+
+            # Add related observation ids to the response
+            source_ids = [s["source_id"] for s in snapshots]
+            observations_by_source_id = _get_observations_for_snapshots(session, source_ids)
+            for snapshot in snapshots:
+                snapshot["observed_in"] = observations_by_source_id.get(snapshot["source_id"], [])
 
         return {
             "success": True,
@@ -471,6 +454,3 @@ def get_ccl_snapshots(event, response: Response):
             "comment": "FAILED_TO_QUERY_SNAPSHOTS",
             "error": str(e),
         })
-    finally:
-        if engine:
-            engine.dispose()

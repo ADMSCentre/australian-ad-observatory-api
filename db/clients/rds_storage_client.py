@@ -23,6 +23,22 @@ def get_db_session(db_url: str):
         print(f"Could not connect to the database: {e}")
         return None, None
 
+class RdsSession:
+    """Context manager for RDS database sessions."""
+    def __init__(self, db_url: str):
+        self.db_url = db_url
+        self.session_maker, self.engine = get_db_session(db_url)
+        if not self.session_maker or not self.engine:
+            raise ConnectionError("Failed to connect to the RDS database.")
+
+    def __enter__(self):
+        self.session = self.session_maker()
+        return self.session
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.session.close()
+        self.engine.dispose()
+
 class RdsStorageClient(BaseStorageClient):
     """A client for Amazon RDS storage."""
     def __init__(self, **config: dict):
