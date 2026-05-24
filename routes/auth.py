@@ -372,16 +372,21 @@ def cilogon_authorize(event, response: Response):
         
         print(f"Obtained userinfo: {userinfo}")
         if not userinfo or "email" not in userinfo:
-            response.status(400).json(
-                {"success": False, "comment": "User info missing email field"}
-            )
-            return event, response, {}
+            print("Warning: Userinfo response does not contain email. Received userinfo: ", userinfo)
         
+        full_name = None
+        if "name" in userinfo:
+            full_name = userinfo.get("name")
+        elif "given_name" in userinfo or "family_name" in userinfo:
+            given_name = userinfo.get("given_name", "")
+            family_name = userinfo.get("family_name", "")
+            full_name = f"{given_name} {family_name}".strip()
+
         # 7. Get the user or create a new one in our application with the SSO provider
         app_user_identity = get_or_create_external_user_identity(
             provider="cilogon",
             provider_user_id=userinfo.get("sub"),
-            full_name=userinfo.get("name"),
+            full_name=full_name,
             email=userinfo.get("email")
         )
         
